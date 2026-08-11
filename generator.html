@@ -16,24 +16,30 @@
         <div class="text-sm mb-4">{{user_message}}</div>
         <div class="w-1/2 mb-4">
           <input
-            class="block w-full text-sm text-gray-900 border border-gray-300 cursor-pointer bg-gray-50 focus:outline-none"
+            class="block w-full text-sm text-gray-900 border border-gray-300 cursor-pointer bg-gray-50 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
             id="file_input"
+            ref="file_input_ref"
             type="file"
+            :disabled="has_text"
+            @change="on_file_change"
           />
         </div>
         <div class="w-1/2 mb-2">
           <input
-            class="block w-full text-sm text-gray-900 border border-gray-300 bg-gray-50 focus:outline-none"
+            class="block w-full text-sm text-gray-900 border border-gray-300 bg-gray-50 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
             id="text_name"
             v-model="text_name"
+            :disabled="has_file"
             placeholder="message.txt"
           />
         </div>
         <div class="w-1/2 mb-4">
           <textarea
-            class="block w-full text-sm text-gray-900 border border-gray-300 bg-gray-50 focus:outline-none"
+            class="block w-full text-sm text-gray-900 border border-gray-300 bg-gray-50 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
             id="text_input"
             v-model="text_input"
+            :disabled="has_file"
+            @input="sync_input_states"
             rows="5"
             placeholder="Or paste text to send as a file (takes priority over the selected file)"
           ></textarea>
@@ -59,7 +65,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.0.3/pako.min.js"></script>
     <script>
-      const { createApp, ref, onMounted } = Vue;
+      const { createApp, ref, computed, onMounted } = Vue;
 
       createApp({
         setup() {
@@ -67,10 +73,27 @@
           const is_transferring = ref(false);
           const text_input = ref("");
           const text_name = ref("message.txt");
+          const file_input_ref = ref(null);
+          const has_file = ref(false);
           const chunk_size = 250;
           const MAX_TEXT_LENGTH = 1000000;
           const DEFAULT_TEXT_NAME = "message.txt";
           let qrcode_object = "";
+
+          const has_text = computed(() => text_input.value.trim() !== "");
+
+          const sync_input_states = () => {
+            if (has_text.value && file_input_ref.value) {
+              file_input_ref.value.value = "";
+              has_file.value = false;
+            }
+          };
+
+          const on_file_change = () => {
+            has_file.value = !!(
+              file_input_ref.value && file_input_ref.value.files.length > 0
+            );
+          };
 
           const encode_data = (index, input_bytes) => {
             let encoded_string = String.fromCharCode.apply(null, input_bytes);
@@ -197,6 +220,11 @@
             is_transferring,
             text_input,
             text_name,
+            file_input_ref,
+            has_text,
+            has_file,
+            sync_input_states,
+            on_file_change,
           };
         },
       }).mount("#app");

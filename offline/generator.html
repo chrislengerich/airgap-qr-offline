@@ -18,6 +18,8 @@
                                      border: 1px solid #d1d5db; background: #f9fafb;
                                      font: inherit; color: #333; }
       textarea { resize: vertical; }
+      input[type="file"]:disabled, input[type="text"]:disabled, textarea:disabled {
+        opacity: 0.5; cursor: not-allowed; }
       .row { display: flex; gap: 8px; align-items: center; justify-content: center; margin: 0 0 1rem; }
       label.row { font-size: 0.9rem; }
       select { padding: 4px 6px; }
@@ -75,6 +77,20 @@ var QRCode;!function(){function a(a){this.mode=c.MODE_8BIT_BYTE,this.data=a,this
         var DEFAULT_TEXT_NAME = "message.txt";
 
         var qrcode_object, is_transferring = false, frames = [], idx = 0, timer = null;
+
+        var sync_input_states = function () {
+          var has_text = text_input.value.trim() !== "";
+          var has_file = file_input.files.length > 0;
+          if (has_text) {
+            file_input.value = "";
+            has_file = false;
+          }
+          file_input.disabled = has_text;
+          text_input.disabled = has_file;
+          text_name.disabled = has_file;
+        };
+        text_input.addEventListener("input", sync_input_states);
+        file_input.addEventListener("change", sync_input_states);
 
         var safe_name = function (name) {
           var n = String(name || "").split(/[\\/]/).pop();
