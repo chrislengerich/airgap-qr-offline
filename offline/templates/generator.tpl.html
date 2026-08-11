@@ -70,23 +70,22 @@ __QRCODE__
         };
 
         var show = function (i) {
-          idx = i;
+          var n = frames.length;
+          idx = ((i % n) + n) % n;
           qrcode_object.clear();
-          qrcode_object.makeCode(frames[i]);
-          if (i === 0) {
-            user_message.textContent = "Scan the metadata QR code";
-            btn_prev.disabled = true;
-          } else {
-            user_message.textContent = "Transferring chunk " + i + "/" + (frames.length - 1);
-            btn_prev.disabled = false;
-          }
-          btn_next.disabled = i >= frames.length - 1;
+          qrcode_object.makeCode(frames[idx]);
+          user_message.textContent = idx === 0
+            ? "Scan the metadata QR code"
+            : "Transferring chunk " + idx + "/" + (n - 1);
         };
 
         var schedule = function () {
           clearTimeout(timer);
           timer = setTimeout(function () {
-            if (is_transferring && idx < frames.length - 1) show(idx + 1);
+            if (is_transferring) {
+              show(idx + 1);
+              schedule();
+            }
           }, parseInt(speed.value, 10));
         };
 

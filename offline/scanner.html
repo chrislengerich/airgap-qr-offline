@@ -10187,6 +10187,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
           }
           var unit8 = new Uint8Array(out);
           var inflated = pako.inflate(unit8);
+          download_file(inflated, meta.name);
           cancelAnimationFrame(timer);
           is_receiving = false;
           if (stream) {
@@ -10254,6 +10255,14 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
           decoded = {};
           meta = {};
           render();
+          if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            is_receiving = false;
+            render();
+            user_message.textContent =
+              "Camera unavailable: this page must be opened from a secure context " +
+              "(e.g. http://localhost) to access the camera.";
+            return;
+          }
           navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
             .then(function (s) {
               if (!is_receiving) { s.getTracks().forEach(function (t) { t.stop(); }); return; }

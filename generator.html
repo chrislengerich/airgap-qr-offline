@@ -64,34 +64,34 @@
           const stop_transfer = () => {
             is_transferring.value = false;
             user_message.value = "Choose file to get started";
+            if (qrcode_object) {
+              qrcode_object.clear();
+              qrcode_object.makeCode("Choose file to get started");
+            }
           };
 
           const start_transfer = async () => {
             let file_input = document.getElementById("file_input");
             is_transferring.value = true;
             let file = file_input.files[0];
-            let data_chunks = [];
             let data_array = pako.gzip(await file.arrayBuffer(), { level: 9 });
             let total_chunks = Math.ceil(data_array.length / chunk_size);
             let file_metadata = { name: file.name, chunks: total_chunks };
-            qrcode_object.clear();
-            qrcode_object.makeCode(JSON.stringify(file_metadata));
-            user_message.value = "Starting data transfer in few seconds ...";
-            await new Promise((r) => setTimeout(r, 1000));
+            let frames = [JSON.stringify(file_metadata)];
             for (let i = 0; i < total_chunks; i++) {
-              await new Promise((r) => setTimeout(r, 50));
               let start = i * chunk_size;
               let chunk = data_array.subarray(start, start + chunk_size);
-              let encoded_data = encode_data(i, chunk);
+              frames.push(encode_data(i, chunk));
+            }
+            let idx = 0;
+            while (is_transferring.value) {
               qrcode_object.clear();
-              qrcode_object.makeCode(encoded_data);
-              user_message.value = `Transfering Chunk ${i}/${total_chunks} ...`;
-              if (!is_transferring.value) {
-                user_message.value = "Choose file to get started";
-                qrcode_object.clear();
-                qrcode_object.makeCode("Choose file to get started");
-                break;
-              }
+              qrcode_object.makeCode(frames[idx]);
+              user_message.value = idx === 0
+                ? "Scan the metadata QR code"
+                : `Transferring chunk ${idx}/${total_chunks} ...`;
+              await new Promise((r) => setTimeout(r, 1000));
+              idx = (idx + 1) % frames.length;
             }
             stop_transfer();
           };

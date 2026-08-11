@@ -95,8 +95,18 @@ open scanner.html
 Differences from the online version:
 
 - The offline scanner uses **jsQR** (pure JavaScript) instead of zbar-wasm, so no WASM file needs to be fetched.
-- The offline sender adds Prev/Next buttons and a speed selector. The original auto-advanced every 50 ms, which is too fast to scan reliably.
+- The offline sender adds Prev/Next buttons and a speed selector. Both senders now auto-advance continuously, looping through metadata → every chunk → back to metadata until stopped.
 - The wire format is unchanged, so online and offline pages interoperate.
+
+### Camera access and Android (Vanadium / GrapheneOS)
+
+The receiver needs `getUserMedia`, which browsers only expose on **secure contexts**. Chromium-based browsers (including Vanadium) do not treat `file://` as a secure context, so the offline scanner cannot access the camera when opened directly from a file on Android — a "Camera unavailable" message is shown. The sender needs no camera and works fine from `file://`.
+
+To use the receiver offline on Android:
+
+1. **Serve the folder locally** (guaranteed to work): on the phone, run `python3 -m http.server 8000` in a terminal app (e.g. Termux), then open `http://localhost:8000/scanner.html` in Vanadium. `localhost` is a secure context, so the camera works with no network at all.
+2. **Save a page copy**: open `offline/scanner.html` once over http(s) (a local server or any static host), then use Vanadium's "Download page". Unlike MHTML files reloaded from `file://` (where Chromium disables scripts), the saved copy opens in Chrome's offline-page viewer, which runs the page — camera included. This is why a saved copy of the online version already works on GrapheneOS.
+
 
 ## Python CLI
 
