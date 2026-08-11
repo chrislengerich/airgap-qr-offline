@@ -36,7 +36,7 @@ http
       }
       res.writeHead(200, {
         "Content-Type": MIME[path.extname(filePath).toLowerCase()] || "application/octet-stream",
-        "Cache-Control": "no-store",
+        "Cache-Control": "public, max-age=3600",
       });
       res.end(data);
     });
