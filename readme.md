@@ -90,7 +90,7 @@ open scanner.html
 
 ## Offline / Single-File Version
 
-`offline/generator.html` and `offline/scanner.html` are fully self-contained: pako, qrcodejs and jsQR are inlined, so there are no CDN, Vue or WASM dependencies. They work from `file://` and can be kept as an offline copy (e.g. open in a browser, then use Android Chrome's "Download page"). Rebuild them with `python3 build_offline.py`; the pinned libraries live in `offline/vendor/`.
+`offline/generator.html`, `offline/scanner.html` and `offline/index.html` are fully self-contained: pako, qrcodejs and jsQR are inlined, so there are no CDN, Vue or WASM dependencies. They work from `file://` and are served with a service worker (`offline/sw.js`) so that once a page is opened over http(s) the browser precaches it and it keeps working — fully interactive, camera included — when offline. Rebuild them with `python3 build_offline.py`; the pinned libraries live in `offline/vendor/`.
 
 Differences from the online version:
 
@@ -105,7 +105,11 @@ The receiver needs `getUserMedia`, which browsers only expose on **secure contex
 To use the receiver offline on Android:
 
 1. **Serve the folder locally** (guaranteed to work): on the phone, run `python3 -m http.server 8000` in a terminal app (e.g. Termux), then open `http://localhost:8000/scanner.html` in Vanadium. `localhost` is a secure context, so the camera works with no network at all.
-2. **Save a page copy**: open `offline/scanner.html` once over http(s) (a local server or any static host), then use Vanadium's "Download page". Unlike MHTML files reloaded from `file://` (where Chromium disables scripts), the saved copy opens in Chrome's offline-page viewer, which runs the page — camera included. This is why a saved copy of the online version already works on GrapheneOS.
+2. **Let the service worker cache it** (recommended for a phone): the pages register `offline/sw.js`, which precaches `index.html`, `generator.html` and `scanner.html`. Open `https://<host>/scanner.html` once while online so the cache is populated, then open the *same URL* again with no network — the browser serves the cached, fully interactive page, and `https` keeps the camera usable.
+
+   A deployed copy is available at `https://airgap-qr-offline-32e58287c4cc.herokuapp.com/` (see the `Procfile`/`server.js` in the repo root). Redeploy after rebuilding with `git push heroku feat/python-and-offline:main`.
+
+> **Why not "Download page"?** Chromium intentionally disables every form control (buttons, inputs, selects) in MHTML files, and Android's "Download page" produces an MHTML file. The saved copy therefore renders with all buttons greyed out and cannot be interacted with — there is no way around this restriction. Use the service worker path instead.
 
 
 ## Python CLI

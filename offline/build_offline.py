@@ -2,8 +2,9 @@
 """Build the fully-offline (single-file) versions of the QR transfer site.
 
 Every dependency (pako, qrcodejs, jsQR) is inlined into a single HTML file so
-the resulting pages have no external references, work from file://, and can be
-opened offline after downloading (e.g. Android Chrome's "Download page").
+the resulting pages have no external references and work from file://. The
+pages register a service worker (sw.js) so that once opened over http(s) they
+are precached and work offline.
 
 The inlined libraries are pinned and vendored in offline/vendor/.
 

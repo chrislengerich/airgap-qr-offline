@@ -176,6 +176,9 @@ __JSQR__
 
         render();
       })();
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("./sw.js").catch(function () {});
+      }
     </script>
   </body>
 </html>

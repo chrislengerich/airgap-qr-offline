@@ -111,6 +111,8 @@ __QRCODE__
             for (var i = 0; i < total_chunks; i++) {
               frames.push(encode_data(i, data_array.subarray(i * chunk_size, (i + 1) * chunk_size)));
             }
+            btn_prev.disabled = false;
+            btn_next.disabled = false;
             show(0);
             schedule();
           });
@@ -120,6 +122,10 @@ __QRCODE__
         btn_prev.addEventListener("click", function () { show(idx - 1); schedule(); });
         btn_next.addEventListener("click", function () { show(idx + 1); schedule(); });
         speed.addEventListener("change", schedule);
+
+        if ("serviceWorker" in navigator) {
+          navigator.serviceWorker.register("./sw.js").catch(function () {});
+        }
 
         var size = Math.max(256, Math.min(window.innerWidth, window.innerHeight) / 1.5);
         qrcode_object = new QRCode("qrcode", {

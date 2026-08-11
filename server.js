@@ -21,7 +21,7 @@ http
       res.end("Bad request");
       return;
     }
-    if (urlPath === "/") urlPath = "/generator.html";
+    if (urlPath === "/") urlPath = "/index.html";
     const filePath = path.join(ROOT, urlPath);
     if (!filePath.startsWith(ROOT)) {
       res.writeHead(403, { "Content-Type": "text/plain" });
@@ -36,7 +36,9 @@ http
       }
       res.writeHead(200, {
         "Content-Type": MIME[path.extname(filePath).toLowerCase()] || "application/octet-stream",
-        "Cache-Control": "public, max-age=3600",
+        "Cache-Control": filePath.endsWith(path.sep + "sw.js")
+          ? "no-cache"
+          : "public, max-age=3600",
       });
       res.end(data);
     });
