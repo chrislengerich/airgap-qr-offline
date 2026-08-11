@@ -74,11 +74,12 @@ open scanner.html
 
 ### Data Sender (generator.html)
 
-1. **File Selection**: User selects a file from their device.
-2. **Compression**: The file is compressed using the pako library.
-3. **Chunking**: The compressed file is split into smaller chunks.
-4. **QR Code Generation**: Each chunk is encoded into a QR code using qrcode.js.
-5. **Display QR Codes**: The QR codes are displayed sequentially for the receiver to scan.
+1. **Source Selection**: The user either picks a file from their device or pastes text into the text box (text takes priority over any selected file and is sent as a small file named by the adjacent field, default `message.txt`).
+2. **Validation**: Text is checked for an empty value, a size limit (`1000000` characters), and malformed Unicode (unpaired surrogates) before sending; file names are sanitized to a bare, safe name.
+3. **Compression**: The payload is compressed using the pako library.
+4. **Chunking**: The compressed payload is split into smaller chunks.
+5. **QR Code Generation**: Each chunk is encoded into a QR code using qrcode.js.
+6. **Display QR Codes**: The QR codes are displayed sequentially for the receiver to scan.
 
 ### Data Receiver (scanner.html)
 
@@ -95,7 +96,7 @@ open scanner.html
 Differences from the online version:
 
 - The offline scanner uses **jsQR** (pure JavaScript) instead of zbar-wasm, so no WASM file needs to be fetched.
-- The offline sender adds Prev/Next buttons and a speed selector. Both senders now auto-advance continuously, looping through metadata → every chunk → back to metadata until stopped.
+- The offline sender adds Prev/Next buttons and a speed selector. Both senders auto-advance continuously, looping through metadata → every chunk → back to metadata until stopped, and both accept a pasted text message in place of a file.
 - The wire format is unchanged, so online and offline pages interoperate.
 
 ### Camera access and Android (Vanadium / GrapheneOS)

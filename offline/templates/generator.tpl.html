@@ -14,6 +14,10 @@
       .message { font-size: 0.9rem; margin: 0 0 1rem; color: #555; text-align: center; }
       input[type="file"] { width: 100%; padding: 8px; margin: 0 0 1rem;
                            border: 1px solid #d1d5db; background: #f9fafb; cursor: pointer; }
+      input[type="text"], textarea { width: 100%; padding: 8px; margin: 0 0 1rem;
+                                     border: 1px solid #d1d5db; background: #f9fafb;
+                                     font: inherit; color: #333; }
+      textarea { resize: vertical; }
       .row { display: flex; gap: 8px; align-items: center; justify-content: center; margin: 0 0 1rem; }
       label.row { font-size: 0.9rem; }
       select { padding: 4px 6px; }
@@ -28,8 +32,11 @@
   <body>
     <div class="card">
       <div class="title">Data Sender Mode</div>
-      <div class="message" id="user_message">Choose file to get started</div>
+      <div class="message" id="user_message">Choose a file or paste text to get started</div>
       <input id="file_input" type="file" />
+      <input id="text_name" type="text" value="message.txt" placeholder="message.txt" />
+      <textarea id="text_input" rows="5"
+        placeholder="Or paste text to send as a file (takes priority over the selected file)"></textarea>
       <div class="row">
         <button id="btn_start">Start Transfer</button>
         <button id="btn_prev" disabled>Prev</button>
@@ -58,8 +65,12 @@ __QRCODE__
         var btn_prev = document.getElementById("btn_prev");
         var btn_next = document.getElementById("btn_next");
         var file_input = document.getElementById("file_input");
+        var text_input = document.getElementById("text_input");
+        var text_name = document.getElementById("text_name");
         var speed = document.getElementById("speed");
         var chunk_size = 250;
+        var MAX_TEXT_LENGTH = 1000000;
+        var DEFAULT_TEXT_NAME = "message.txt";
 
         var qrcode_object, is_transferring = false, frames = [], idx = 0, timer = null;
 
@@ -69,6 +80,35 @@ __QRCODE__
           if (n === "." || n === "..") n = "";
           if (n.length > 200) n = n.slice(0, 200);
           return n || "file.bin";
+        };
+
+        var valid_text = function (text) {
+          if (typeof text !== "string" || text.length === 0) {
+            return { ok: false, error: "Text is empty" };
+          }
+          if (text.length > MAX_TEXT_LENGTH) {
+            return { ok: false,
+                     error: "Text too long: " + text.length +
+                            " characters (max " + MAX_TEXT_LENGTH + ")" };
+          }
+          for (var i = 0; i < text.length; i++) {
+            var c = text.charCodeAt(i);
+            if (c >= 0xd800 && c <= 0xdfff) {
+              if (c <= 0xdbff) {
+                if (i + 1 >= text.length) {
+                  return { ok: false, error: "Text contains an unpaired surrogate" };
+                }
+                var next = text.charCodeAt(i + 1);
+                if (!(next >= 0xdc00 && next <= 0xdfff)) {
+                  return { ok: false, error: "Text contains invalid Unicode characters" };
+                }
+                i++;
+              } else {
+                return { ok: false, error: "Text contains invalid Unicode characters" };
+              }
+            }
+          }
+          return { ok: true };
         };
 
         var encode_data = function (index, input_bytes) {
@@ -103,26 +143,42 @@ __QRCODE__
           btn_start.textContent = "Start Transfer";
           btn_prev.disabled = true;
           btn_next.disabled = true;
-          user_message.textContent = "Choose file to get started";
+          user_message.textContent = "Choose a file or paste text to get started";
+        };
+
+        var begin_transfer = function (bytes, name) {
+          var data_array = pako.gzip(bytes, { level: 9 });
+          var total_chunks = Math.ceil(data_array.length / chunk_size);
+          frames = [JSON.stringify({ name: safe_name(name), chunks: total_chunks, size: bytes.length })];
+          for (var i = 0; i < total_chunks; i++) {
+            frames.push(encode_data(i, data_array.subarray(i * chunk_size, (i + 1) * chunk_size)));
+          }
+          is_transferring = true;
+          btn_start.textContent = "Stop Transfer";
+          btn_prev.disabled = false;
+          btn_next.disabled = false;
+          show(0);
+          schedule();
         };
 
         var start_transfer = function () {
           if (is_transferring) { stop_transfer(); return; }
+          var text = text_input.value;
+          if (text.trim() !== "") {
+            var check = valid_text(text);
+            if (!check.ok) { user_message.textContent = check.error; return; }
+            var bytes = new TextEncoder().encode(text);
+            var name = text_name.value.trim() ? text_name.value : DEFAULT_TEXT_NAME;
+            begin_transfer(bytes, name);
+            return;
+          }
           var file = file_input.files[0];
-          if (!file) { user_message.textContent = "Please choose a file first"; return; }
-          is_transferring = true;
-          btn_start.textContent = "Stop Transfer";
+          if (!file) {
+            user_message.textContent = "Choose a file or paste text to get started";
+            return;
+          }
           file.arrayBuffer().then(function (buf) {
-            var data_array = pako.gzip(new Uint8Array(buf), { level: 9 });
-            var total_chunks = Math.ceil(data_array.length / chunk_size);
-            frames = [JSON.stringify({ name: safe_name(file.name), chunks: total_chunks, size: file.size })];
-            for (var i = 0; i < total_chunks; i++) {
-              frames.push(encode_data(i, data_array.subarray(i * chunk_size, (i + 1) * chunk_size)));
-            }
-            btn_prev.disabled = false;
-            btn_next.disabled = false;
-            show(0);
-            schedule();
+            begin_transfer(new Uint8Array(buf), file.name);
           });
         };
 

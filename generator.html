@@ -21,6 +21,23 @@
             type="file"
           />
         </div>
+        <div class="w-1/2 mb-2">
+          <input
+            class="block w-full text-sm text-gray-900 border border-gray-300 bg-gray-50 focus:outline-none"
+            id="text_name"
+            v-model="text_name"
+            placeholder="message.txt"
+          />
+        </div>
+        <div class="w-1/2 mb-4">
+          <textarea
+            class="block w-full text-sm text-gray-900 border border-gray-300 bg-gray-50 focus:outline-none"
+            id="text_input"
+            v-model="text_input"
+            rows="5"
+            placeholder="Or paste text to send as a file (takes priority over the selected file)"
+          ></textarea>
+        </div>
         <button
           v-if="!is_transferring"
           v-on:click="start_transfer"
@@ -46,9 +63,13 @@
 
       createApp({
         setup() {
-          const user_message = ref("Choose file to get started");
+          const user_message = ref("Choose a file or paste text to get started");
           const is_transferring = ref(false);
+          const text_input = ref("");
+          const text_name = ref("message.txt");
           const chunk_size = 250;
+          const MAX_TEXT_LENGTH = 1000000;
+          const DEFAULT_TEXT_NAME = "message.txt";
           let qrcode_object = "";
 
           const encode_data = (index, input_bytes) => {
@@ -69,22 +90,72 @@
             return n || "file.bin";
           };
 
+          const valid_text = (text) => {
+            if (typeof text !== "string" || text.length === 0) {
+              return { ok: false, error: "Text is empty" };
+            }
+            if (text.length > MAX_TEXT_LENGTH) {
+              return {
+                ok: false,
+                error: `Text too long: ${text.length} characters (max ${MAX_TEXT_LENGTH})`,
+              };
+            }
+            for (let i = 0; i < text.length; i++) {
+              const c = text.charCodeAt(i);
+              if (c >= 0xd800 && c <= 0xdfff) {
+                if (c <= 0xdbff) {
+                  if (i + 1 >= text.length) {
+                    return { ok: false, error: "Text contains an unpaired surrogate" };
+                  }
+                  const next = text.charCodeAt(i + 1);
+                  if (!(next >= 0xdc00 && next <= 0xdfff)) {
+                    return { ok: false, error: "Text contains invalid Unicode characters" };
+                  }
+                  i++;
+                } else {
+                  return { ok: false, error: "Text contains invalid Unicode characters" };
+                }
+              }
+            }
+            return { ok: true };
+          };
+
           const stop_transfer = () => {
             is_transferring.value = false;
-            user_message.value = "Choose file to get started";
+            user_message.value = "Choose a file or paste text to get started";
             if (qrcode_object) {
               qrcode_object.clear();
-              qrcode_object.makeCode("Choose file to get started");
+              qrcode_object.makeCode("Choose a file or paste text to get started");
             }
           };
 
           const start_transfer = async () => {
             let file_input = document.getElementById("file_input");
+            const text = text_input.value;
+            let bytes, name;
+            if (text.trim() !== "") {
+              const check = valid_text(text);
+              if (!check.ok) {
+                user_message.value = check.error;
+                return;
+              }
+              bytes = new TextEncoder().encode(text);
+              name = safe_name(
+                text_name.value.trim() ? text_name.value : DEFAULT_TEXT_NAME
+              );
+            } else {
+              const file = file_input.files[0];
+              if (!file) {
+                user_message.value = "Choose a file or paste text to get started";
+                return;
+              }
+              bytes = new Uint8Array(await file.arrayBuffer());
+              name = safe_name(file.name);
+            }
             is_transferring.value = true;
-            let file = file_input.files[0];
-            let data_array = pako.gzip(await file.arrayBuffer(), { level: 9 });
+            let data_array = pako.gzip(bytes, { level: 9 });
             let total_chunks = Math.ceil(data_array.length / chunk_size);
-            let file_metadata = { name: safe_name(file.name), chunks: total_chunks, size: file.size };
+            let file_metadata = { name: name, chunks: total_chunks, size: bytes.length };
             let frames = [JSON.stringify(file_metadata)];
             for (let i = 0; i < total_chunks; i++) {
               let start = i * chunk_size;
@@ -124,6 +195,8 @@
             start_transfer,
             stop_transfer,
             is_transferring,
+            text_input,
+            text_name,
           };
         },
       }).mount("#app");
