@@ -61,6 +61,14 @@
             return index + "," + encoded_data;
           };
 
+          const safe_name = (name) => {
+            let n = String(name || "").split(/[\\/]/).pop();
+            n = n.replace(/[\u0000-\u001f\u007f]/g, "").trim();
+            if (n === "." || n === "..") n = "";
+            if (n.length > 200) n = n.slice(0, 200);
+            return n || "file.bin";
+          };
+
           const stop_transfer = () => {
             is_transferring.value = false;
             user_message.value = "Choose file to get started";
@@ -76,7 +84,7 @@
             let file = file_input.files[0];
             let data_array = pako.gzip(await file.arrayBuffer(), { level: 9 });
             let total_chunks = Math.ceil(data_array.length / chunk_size);
-            let file_metadata = { name: file.name, chunks: total_chunks };
+            let file_metadata = { name: safe_name(file.name), chunks: total_chunks, size: file.size };
             let frames = [JSON.stringify(file_metadata)];
             for (let i = 0; i < total_chunks; i++) {
               let start = i * chunk_size;

@@ -63,6 +63,14 @@ __QRCODE__
 
         var qrcode_object, is_transferring = false, frames = [], idx = 0, timer = null;
 
+        var safe_name = function (name) {
+          var n = String(name || "").split(/[\\/]/).pop();
+          n = n.replace(/[\u0000-\u001f\u007f]/g, "").trim();
+          if (n === "." || n === "..") n = "";
+          if (n.length > 200) n = n.slice(0, 200);
+          return n || "file.bin";
+        };
+
         var encode_data = function (index, input_bytes) {
           var encoded_string = String.fromCharCode.apply(null, input_bytes);
           var utf8_bytes = new TextEncoder().encode(encoded_string);
@@ -107,7 +115,7 @@ __QRCODE__
           file.arrayBuffer().then(function (buf) {
             var data_array = pako.gzip(new Uint8Array(buf), { level: 9 });
             var total_chunks = Math.ceil(data_array.length / chunk_size);
-            frames = [JSON.stringify({ name: file.name, chunks: total_chunks })];
+            frames = [JSON.stringify({ name: safe_name(file.name), chunks: total_chunks, size: file.size })];
             for (var i = 0; i < total_chunks; i++) {
               frames.push(encode_data(i, data_array.subarray(i * chunk_size, (i + 1) * chunk_size)));
             }

@@ -36,6 +36,7 @@ http
       }
       res.writeHead(200, {
         "Content-Type": MIME[path.extname(filePath).toLowerCase()] || "application/octet-stream",
+        "X-Content-Type-Options": "nosniff",
         "Cache-Control": filePath.endsWith(path.sep + "sw.js")
           ? "no-cache"
           : "public, max-age=3600",

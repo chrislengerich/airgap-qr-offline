@@ -5,10 +5,17 @@ The wire format is byte-for-byte compatible with generator.html / scanner.html:
 
   * The whole file is gzip-compressed (level 9), then split into chunks of
     250 compressed bytes.
-  * The first QR code carries the metadata JSON: {"name":"...","chunks":N}
+  * The first QR code carries the metadata JSON:
+    {"name":"...","chunks":N,"size":M}. `size` (original byte count) is
+    optional and ignored by older receivers; receivers validate the
+    decompressed length against it when present.
   * Every following QR code carries "<index>,<base64(chunk)>" where the chunk
     bytes are first mapped through latin1 -> UTF-8 before base64, exactly like
     the JS encode_data()/decode_data() pair.
+
+Receivers reject untrusted input: names are reduced to a bare file name
+(no path components), metadata must pass validate_meta(), chunk indices are
+bounded, and reconstruct() refuses corrupt or size-mismatched payloads.
 
 Usage:
   python3 airgap_qr.py send FILE [--delay SEC] [--no-fullscreen]
@@ -32,6 +39,47 @@ import time
 
 CHUNK_SIZE = 250  # compressed bytes per QR; must match JS `chunk_size`
 
+# Upper bounds enforced by receivers so a malicious sender cannot cause
+# unbounded memory allocation, loops, or absurd file names.
+MAX_CHUNKS = 200000  # must match MAX_CHUNKS in scanner.html / offline scanner
+MAX_SIZE = 64 * 1024 * 1024  # decompressed bytes; must match MAX_SIZE in JS
+DEFAULT_NAME = "received_file.bin"
+
+
+def safe_filename(name):
+    """Reduce a sender-supplied name to a bare, safe file name.
+
+    Strips path components (blocks traversal like "../x" or "/etc/passwd"),
+    removes control characters, caps the length, and falls back to a default.
+    """
+    n = str(name or "").replace("\\", "/").rsplit("/", 1)[-1]
+    n = "".join(ch for ch in n if ch >= " " and ch != "\x7f")
+    n = n.strip().rstrip(".")
+    if n in ("", ".", ".."):
+        n = ""
+    n = n[:200]
+    return n or DEFAULT_NAME
+
+
+def validate_meta(m):
+    """Reject malformed or abusive metadata from an untrusted sender."""
+    if not isinstance(m, dict):
+        return False
+    if not isinstance(m.get("name"), str) or not m.get("name"):
+        return False
+    chunks = m.get("chunks")
+    if not isinstance(chunks, int) or isinstance(chunks, bool):
+        return False
+    if not (1 <= chunks <= MAX_CHUNKS):
+        return False
+    size = m.get("size")
+    if size is not None:
+        if not isinstance(size, int) or isinstance(size, bool):
+            return False
+        if not (0 <= size <= MAX_SIZE):
+            return False
+    return True
+
 
 def encode_chunk(index, data):
     """Replicate JS encode_data(): binary string -> UTF-8 bytes -> base64."""
@@ -48,16 +96,41 @@ def decode_chunk(payload):
     return int(index), bytearray(binary_string.encode("latin-1"))
 
 
-def build_frames(compressed, filename):
+def build_frames(compressed, filename, size):
     """Return [metadata_payload, chunk_0_payload, chunk_1_payload, ...]."""
     total = (len(compressed) + CHUNK_SIZE - 1) // CHUNK_SIZE
-    meta = json.dumps({"name": filename, "chunks": total}, separators=(",", ":"))
+    meta = json.dumps(
+        {"name": safe_filename(filename), "chunks": total, "size": size},
+        separators=(",", ":"),
+    )
     frames = [meta]
     for i in range(total):
         frames.append(
             encode_chunk(i, compressed[i * CHUNK_SIZE:(i + 1) * CHUNK_SIZE])
         )
     return frames
+
+
+def reconstruct(meta, chunks):
+    """Validate and reassemble received chunks into the original bytes.
+
+    Raises ValueError on decompression failure or size mismatch instead of
+    returning garbage for the caller to write to disk.
+    """
+    ordered = bytearray()
+    for i in range(meta["chunks"]):
+        ordered += chunks[i]
+    try:
+        raw = gzip.decompress(bytes(ordered))
+    except OSError:
+        raise ValueError(
+            "decompression failed: data is corrupt or not a valid transfer"
+        )
+    if meta.get("size") is not None and len(raw) != meta["size"]:
+        raise ValueError(
+            "size mismatch: expected {} bytes, got {}".format(meta["size"], len(raw))
+        )
+    return bytes(raw)
 
 
 def _deps_send():
@@ -119,7 +192,7 @@ def send(path, delay=0.0, fullscreen=True):
         raw = f.read()
     print("Compressing {} ({} bytes) ...".format(path, len(raw)))
     compressed = gzip.compress(raw, compresslevel=9)
-    frames = build_frames(compressed, os.path.basename(path))
+    frames = build_frames(compressed, os.path.basename(path), len(raw))
     total = len(frames) - 1
     print("{} chunk(s) to send".format(total))
 
@@ -181,32 +254,34 @@ def receive(output=None, camera=0):
             cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         ):
             data = barcode.text
-            if "chunks" in data:
+            if data.startswith("{"):
                 try:
                     new_meta = json.loads(data)
                 except ValueError:
                     pass
                 else:
-                    if new_meta != meta:
+                    if validate_meta(new_meta) and new_meta != meta:
                         meta = new_meta
                         decoded = {}
-                        out_name = output or meta["name"]
+                        out_name = output or safe_filename(meta["name"])
                         print(
                             "Receiving {} ({} chunks) ...".format(
                                 meta["name"], meta["chunks"]
                             )
                         )
-            elif data.count(",") == 1:
+            elif meta and data.count(",") == 1:
                 try:
                     idx, chunk = decode_chunk(data)
                 except (ValueError, UnicodeDecodeError, base64.binascii.Error):
                     continue
+                if not (0 <= idx < meta["chunks"]):
+                    continue
                 if idx not in decoded:
                     decoded[idx] = chunk
                     got = len(decoded)
-                    total = meta["chunks"] if meta else "?"
+                    total = meta["chunks"]
                     print("  chunk {}/{}".format(got, total), flush=True)
-                    if meta and got == meta["chunks"]:
+                    if got == meta["chunks"]:
                         break
 
         if meta and len(decoded) == meta["chunks"]:
@@ -234,15 +309,10 @@ def receive(output=None, camera=0):
             )
         )
 
-    ordered = bytearray()
-    for i in range(meta["chunks"]):
-        ordered += decoded[i]
     try:
-        raw = gzip.decompress(bytes(ordered))
-    except OSError:
-        raw = bytes(ordered)
-        out_name = (out_name or "out") + ".gz"
-        print("WARNING: decompression failed, wrote raw gzip payload instead.")
+        raw = reconstruct(meta, decoded)
+    except ValueError as exc:
+        sys.exit("Transfer failed: {}".format(exc))
 
     with open(out_name, "wb") as f:
         f.write(raw)
@@ -259,8 +329,10 @@ def selfcheck():
     for size in (0, 1, 250, 12345):
         buf = bytes(random.randrange(256) for _ in range(size))
         compressed = gzip.compress(buf, compresslevel=9)
-        frames = build_frames(compressed, "selfcheck.bin")
+        frames = build_frames(compressed, "selfcheck.bin", size)
         meta = json.loads(frames[0])
+        assert validate_meta(meta)
+        assert meta["size"] == size
         chunks = {}
         for frame in frames[1:]:
             idx, chunk = decode_chunk(frame)
@@ -305,6 +377,41 @@ def selfcheck():
             text = read_qr(qr_image(np_, qrcode, Image, frame))
             assert text == frame, "QR image decode mismatch on frame {}".format(i)
         print("  QR image round-trip OK for {}-byte buffer".format(size))
+
+    print("--- security validation ---")
+    assert safe_filename("../../etc/passwd") == "passwd"
+    assert safe_filename("/abs/path/file.bin") == "file.bin"
+    assert safe_filename("..\\..\\win\\evil.txt") == "evil.txt"
+    assert safe_filename("a\n\x00b\r") == "ab"
+    assert safe_filename("") == DEFAULT_NAME
+    assert safe_filename("x" * 500) == "x" * 200
+    assert validate_meta({"name": "a", "chunks": 0}) is False
+    assert validate_meta({"name": "a", "chunks": MAX_CHUNKS + 1}) is False
+    assert validate_meta({"name": "", "chunks": 1}) is False
+    assert validate_meta({"name": "a", "chunks": 1}) is True
+    assert validate_meta({"name": "a", "chunks": 1, "size": -1}) is False
+    assert validate_meta({"name": "a", "chunks": 1, "size": MAX_SIZE + 1}) is False
+    assert validate_meta({"name": "a", "chunks": 1, "size": 7}) is True
+    buf = b"hello"
+    compressed = gzip.compress(buf, compresslevel=9)
+    frames = build_frames(compressed, "ok.bin", len(buf))
+    chunks = {}
+    for frame in frames[1:]:
+        idx, chunk = decode_chunk(frame)
+        chunks[idx] = chunk
+    assert reconstruct(json.loads(frames[0]), chunks) == buf
+    try:
+        reconstruct(json.loads(frames[0]), {0: bytearray(b"garbage")})
+        raise AssertionError("corrupt payload must be rejected")
+    except ValueError:
+        pass
+    bad_meta = {"name": "x", "chunks": 1, "size": 99}
+    try:
+        reconstruct(bad_meta, chunks)
+        raise AssertionError("size mismatch must be rejected")
+    except ValueError:
+        pass
+    print("  all security checks passed")
 
     print("All selfchecks passed.")
     if not ok:

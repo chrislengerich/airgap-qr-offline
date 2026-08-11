@@ -10160,6 +10160,27 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
           };
         };
 
+        var MAX_CHUNKS = 200000;
+        var MAX_SIZE = 64 * 1024 * 1024;
+
+        var safe_filename = function (name) {
+          var n = String(name || "").split(/[\\/]/).pop();
+          n = n.replace(/[\u0000-\u001f\u007f]/g, "").trim();
+          if (n === "." || n === "..") n = "";
+          if (n.length > 200) n = n.slice(0, 200);
+          return n || "received_file.bin";
+        };
+
+        var valid_meta = function (m) {
+          if (!m || typeof m !== "object" || Array.isArray(m)) return false;
+          if (typeof m.name !== "string" || m.name.length > 5000) return false;
+          if (!Number.isInteger(m.chunks) || m.chunks < 1 || m.chunks > MAX_CHUNKS) return false;
+          if (m.size !== undefined && m.size !== null) {
+            if (!Number.isInteger(m.size) || m.size < 0 || m.size > MAX_SIZE) return false;
+          }
+          return true;
+        };
+
         var download_file = function (data, fileName) {
           var blob = new Blob([data]);
           var a = document.createElement("a");
@@ -10181,13 +10202,21 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         };
 
         var complete = function () {
-          var out = [];
-          for (var i = 0; i < meta.chunks; i++) {
-            out = out.concat(decoded[i]);
+          var failed = null;
+          try {
+            var out = [];
+            for (var i = 0; i < meta.chunks; i++) {
+              out = out.concat(decoded[i]);
+            }
+            var unit8 = new Uint8Array(out);
+            var inflated = pako.inflate(unit8);
+            if (meta.size !== undefined && inflated.length !== meta.size) {
+              throw new Error("size mismatch: expected " + meta.size + " bytes, got " + inflated.length);
+            }
+            download_file(inflated, safe_filename(meta.name));
+          } catch (e) {
+            failed = e;
           }
-          var unit8 = new Uint8Array(out);
-          var inflated = pako.inflate(unit8);
-          download_file(inflated, meta.name);
           cancelAnimationFrame(timer);
           is_receiving = false;
           if (stream) {
@@ -10198,7 +10227,9 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
           meta = {};
           decoded = {};
           render();
-          user_message.textContent = "Data Transfer Complete";
+          user_message.textContent = failed
+            ? "Transfer failed: " + (failed.message || String(failed))
+            : "Data Transfer Complete";
         };
 
         var scan_frame = function () {
@@ -10214,15 +10245,23 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
               var code = jsQR(image.data, scan.width, scan.height);
               if (code) {
                 var data = code.data;
-                if (data.indexOf("chunks") !== -1) {
-                  var m = JSON.parse(data);
-                  if (m.name !== meta.name || m.chunks !== meta.chunks) {
-                    meta = m;
-                    decoded = {};
-                  }
+                if (data.charAt(0) === "{") {
+                  try {
+                    var m = JSON.parse(data);
+                    if (valid_meta(m) &&
+                        (m.name !== meta.name || m.chunks !== meta.chunks || m.size !== meta.size)) {
+                      meta = m;
+                      decoded = {};
+                    }
+                  } catch (e) { /* ignore malformed metadata */ }
                 } else if (data.split(",").length === 2) {
-                  var raw = decode_data(data);
-                  decoded[raw.index] = raw.data;
+                  try {
+                    var raw = decode_data(data);
+                    if (Number.isInteger(raw.index) && raw.index >= 0 &&
+                        (!meta.chunks || raw.index < meta.chunks)) {
+                      decoded[raw.index] = raw.data;
+                    }
+                  } catch (e) { /* ignore malformed chunk */ }
                 }
                 render();
               }

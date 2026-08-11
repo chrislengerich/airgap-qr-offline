@@ -50,6 +50,27 @@
           const is_receiving = ref(false);
           let canvas, context, videoElement;
 
+          const MAX_CHUNKS = 200000;
+          const MAX_SIZE = 64 * 1024 * 1024;
+
+          const safe_filename = (name) => {
+            let n = String(name || "").split(/[\\/]/).pop();
+            n = n.replace(/[\u0000-\u001f\u007f]/g, "").trim();
+            if (n === "." || n === "..") n = "";
+            if (n.length > 200) n = n.slice(0, 200);
+            return n || "received_file.bin";
+          };
+
+          const valid_meta = (m) => {
+            if (!m || typeof m !== "object" || Array.isArray(m)) return false;
+            if (typeof m.name !== "string" || m.name.length > 5000) return false;
+            if (!Number.isInteger(m.chunks) || m.chunks < 1 || m.chunks > MAX_CHUNKS) return false;
+            if (m.size !== undefined && m.size !== null) {
+              if (!Number.isInteger(m.size) || m.size < 0 || m.size > MAX_SIZE) return false;
+            }
+            return true;
+          };
+
           const decode_data = (input_string) => {
             const encoded_data = atob(input_string.split(",")[1]);
             const encoded_array = Array.from(encoded_data, (char) =>
@@ -105,13 +126,28 @@
                   continue;
                 }
                 let decoded_data = symbols[0].decode();
-                if (decoded_data.includes("chunks")) {
-                  Object.assign(file_metadata, JSON.parse(decoded_data));
-                  decoded_chunks.value = {};
-                  user_message.value = `Transferring file: ${file_metadata.name}`;
+                if (decoded_data.startsWith("{")) {
+                  const m = JSON.parse(decoded_data);
+                  if (
+                    valid_meta(m) &&
+                    (m.name !== file_metadata.name ||
+                      m.chunks !== file_metadata.chunks ||
+                      m.size !== file_metadata.size)
+                  ) {
+                    Object.assign(file_metadata, m);
+                    decoded_chunks.value = {};
+                    user_message.value = `Transferring file: ${m.name}`;
+                  }
                 } else if (decoded_data.split(",").length == 2) {
                   let raw_data = decode_data(decoded_data);
-                  decoded_chunks.value[raw_data["index"]] = raw_data["data"];
+                  if (
+                    Number.isInteger(raw_data["index"]) &&
+                    raw_data["index"] >= 0 &&
+                    (!file_metadata.chunks ||
+                      raw_data["index"] < file_metadata.chunks)
+                  ) {
+                    decoded_chunks.value[raw_data["index"]] = raw_data["data"];
+                  }
                 }
                 window.decoded_chunks = decoded_chunks.value;
               } catch (error) {
@@ -124,16 +160,31 @@
                 return true;
               }
             }
-            user_message.value = "Data Transfer Complete";
-            output_array = [];
-            for (let i = 0; i < file_metadata.chunks; i++) {
-              output_array = output_array.concat(decoded_chunks.value[i]);
+            let transfer_failed = null;
+            try {
+              output_array = [];
+              for (let i = 0; i < file_metadata.chunks; i++) {
+                output_array = output_array.concat(decoded_chunks.value[i]);
+              }
+              let output_unit8array = Uint8Array.from(output_array);
+              window.output_unit8array = output_unit8array;
+              let inflated_array = pako.inflate(output_unit8array);
+              if (
+                file_metadata.size !== undefined &&
+                inflated_array.length !== file_metadata.size
+              ) {
+                throw new Error(
+                  `size mismatch: expected ${file_metadata.size} bytes, got ${inflated_array.length}`
+                );
+              }
+              download_file(inflated_array, safe_filename(file_metadata.name));
+            } catch (error) {
+              transfer_failed = error;
             }
-            let output_unit8array = Uint8Array.from(output_array);
-            window.output_unit8array = output_unit8array;
-            let infalted_array = pako.inflate(window.output_unit8array);
-            download_file(infalted_array, file_metadata.name);
             stop_receiver();
+            user_message.value = transfer_failed
+              ? `Transfer failed: ${transfer_failed.message || String(transfer_failed)}`
+              : "Data Transfer Complete";
           };
 
           onMounted(async () => {
