@@ -74,7 +74,7 @@ open scanner.html
 
 ### Data Sender (generator.html)
 
-1. **Source Selection**: The user either picks a file from their device or pastes text into the text box (text takes priority over any selected file and is sent as a small file named by the adjacent field, default `message.txt`).
+1. **Source Selection**: The user either picks a file from their device or pastes text into the text box (text takes priority over any selected file). Text is sent as a file named `Paste @ <timestamp>` (local time, e.g. `Paste @ 2026-08-11_14-30-05`), and the sender's status line shows that name once transfer starts.
 2. **Validation**: Text is checked for an empty value, a size limit (`1000000` characters), and malformed Unicode (unpaired surrogates) before sending; file names are sanitized to a bare, safe name.
 3. **Compression**: The payload is compressed using the pako library.
 4. **Chunking**: The compressed payload is split into smaller chunks.

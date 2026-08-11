@@ -14,11 +14,10 @@
       .message { font-size: 0.9rem; margin: 0 0 1rem; color: #555; text-align: center; }
       input[type="file"] { width: 100%; padding: 8px; margin: 0 0 1rem;
                            border: 1px solid #d1d5db; background: #f9fafb; cursor: pointer; }
-      input[type="text"], textarea { width: 100%; padding: 8px; margin: 0 0 1rem;
-                                     border: 1px solid #d1d5db; background: #f9fafb;
-                                     font: inherit; color: #333; }
-      textarea { resize: vertical; }
-      input[type="file"]:disabled, input[type="text"]:disabled, textarea:disabled {
+      textarea { width: 100%; padding: 8px; margin: 0 0 1rem;
+                 border: 1px solid #d1d5db; background: #f9fafb;
+                 font: inherit; color: #333; resize: vertical; }
+      input[type="file"]:disabled, textarea:disabled {
         opacity: 0.5; cursor: not-allowed; }
       .row { display: flex; gap: 8px; align-items: center; justify-content: center; margin: 0 0 1rem; }
       label.row { font-size: 0.9rem; }
@@ -36,7 +35,6 @@
       <div class="title">Data Sender Mode</div>
       <div class="message" id="user_message">Choose a file or paste text to get started</div>
       <input id="file_input" type="file" />
-      <input id="text_name" type="text" value="message.txt" placeholder="message.txt" />
       <textarea id="text_input" rows="5"
         placeholder="Or paste text to send as a file (takes priority over the selected file)"></textarea>
       <div class="row">
@@ -70,13 +68,19 @@ var QRCode;!function(){function a(a){this.mode=c.MODE_8BIT_BYTE,this.data=a,this
         var btn_next = document.getElementById("btn_next");
         var file_input = document.getElementById("file_input");
         var text_input = document.getElementById("text_input");
-        var text_name = document.getElementById("text_name");
         var speed = document.getElementById("speed");
         var chunk_size = 250;
         var MAX_TEXT_LENGTH = 1000000;
-        var DEFAULT_TEXT_NAME = "message.txt";
 
         var qrcode_object, is_transferring = false, frames = [], idx = 0, timer = null;
+        var current_name = "";
+
+        var paste_name = function () {
+          var pad2 = function (n) { return ("0" + n).slice(-2); };
+          var d = new Date();
+          return "Paste @ " + d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()) +
+                 "_" + pad2(d.getHours()) + "-" + pad2(d.getMinutes()) + "-" + pad2(d.getSeconds());
+        };
 
         var sync_input_states = function () {
           var has_text = text_input.value.trim() !== "";
@@ -87,7 +91,6 @@ var QRCode;!function(){function a(a){this.mode=c.MODE_8BIT_BYTE,this.data=a,this
           }
           file_input.disabled = has_text;
           text_input.disabled = has_file;
-          text_name.disabled = has_file;
         };
         text_input.addEventListener("input", sync_input_states);
         file_input.addEventListener("change", sync_input_states);
@@ -141,8 +144,8 @@ var QRCode;!function(){function a(a){this.mode=c.MODE_8BIT_BYTE,this.data=a,this
           qrcode_object.clear();
           qrcode_object.makeCode(frames[idx]);
           user_message.textContent = idx === 0
-            ? "Scan the metadata QR code"
-            : "Transferring chunk " + idx + "/" + (n - 1);
+            ? "Sending \"" + current_name + "\" - scan the metadata QR code"
+            : "Transferring \"" + current_name + "\" (chunk " + idx + "/" + (n - 1) + ")";
         };
 
         var schedule = function () {
@@ -171,6 +174,8 @@ var QRCode;!function(){function a(a){this.mode=c.MODE_8BIT_BYTE,this.data=a,this
           for (var i = 0; i < total_chunks; i++) {
             frames.push(encode_data(i, data_array.subarray(i * chunk_size, (i + 1) * chunk_size)));
           }
+          current_name = safe_name(name);
+          user_message.textContent = "Sending \"" + current_name + "\"";
           is_transferring = true;
           btn_start.textContent = "Stop Transfer";
           btn_prev.disabled = false;
@@ -186,8 +191,7 @@ var QRCode;!function(){function a(a){this.mode=c.MODE_8BIT_BYTE,this.data=a,this
             var check = valid_text(text);
             if (!check.ok) { user_message.textContent = check.error; return; }
             var bytes = new TextEncoder().encode(text);
-            var name = text_name.value.trim() ? text_name.value : DEFAULT_TEXT_NAME;
-            begin_transfer(bytes, name);
+            begin_transfer(bytes, paste_name());
             return;
           }
           var file = file_input.files[0];

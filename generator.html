@@ -24,15 +24,6 @@
             @change="on_file_change"
           />
         </div>
-        <div class="w-1/2 mb-2">
-          <input
-            class="block w-full text-sm text-gray-900 border border-gray-300 bg-gray-50 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
-            id="text_name"
-            v-model="text_name"
-            :disabled="has_file"
-            placeholder="message.txt"
-          />
-        </div>
         <div class="w-1/2 mb-4">
           <textarea
             class="block w-full text-sm text-gray-900 border border-gray-300 bg-gray-50 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
@@ -72,15 +63,24 @@
           const user_message = ref("Choose a file or paste text to get started");
           const is_transferring = ref(false);
           const text_input = ref("");
-          const text_name = ref("message.txt");
           const file_input_ref = ref(null);
           const has_file = ref(false);
           const chunk_size = 250;
           const MAX_TEXT_LENGTH = 1000000;
-          const DEFAULT_TEXT_NAME = "message.txt";
           let qrcode_object = "";
+          let current_name = "";
 
           const has_text = computed(() => text_input.value.trim() !== "");
+
+          const paste_name = () => {
+            const pad2 = (n) => String(n).padStart(2, "0");
+            const d = new Date();
+            return (
+              "Paste @ " +
+              d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()) +
+              "_" + pad2(d.getHours()) + "-" + pad2(d.getMinutes()) + "-" + pad2(d.getSeconds())
+            );
+          };
 
           const sync_input_states = () => {
             if (has_text.value && file_input_ref.value) {
@@ -163,9 +163,7 @@
                 return;
               }
               bytes = new TextEncoder().encode(text);
-              name = safe_name(
-                text_name.value.trim() ? text_name.value : DEFAULT_TEXT_NAME
-              );
+              name = safe_name(paste_name());
             } else {
               const file = file_input.files[0];
               if (!file) {
@@ -175,6 +173,8 @@
               bytes = new Uint8Array(await file.arrayBuffer());
               name = safe_name(file.name);
             }
+            current_name = name;
+            user_message.value = `Sending "${current_name}"`;
             is_transferring.value = true;
             let data_array = pako.gzip(bytes, { level: 9 });
             let total_chunks = Math.ceil(data_array.length / chunk_size);
@@ -190,8 +190,8 @@
               qrcode_object.clear();
               qrcode_object.makeCode(frames[idx]);
               user_message.value = idx === 0
-                ? "Scan the metadata QR code"
-                : `Transferring chunk ${idx}/${total_chunks} ...`;
+                ? `Sending "${current_name}" - scan the metadata QR code`
+                : `Transferring "${current_name}" (chunk ${idx}/${total_chunks})`;
               await new Promise((r) => setTimeout(r, 250));
               idx = (idx + 1) % frames.length;
             }
@@ -219,7 +219,6 @@
             stop_transfer,
             is_transferring,
             text_input,
-            text_name,
             file_input_ref,
             has_text,
             has_file,
