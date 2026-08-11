@@ -88,6 +88,37 @@ open scanner.html
 4. **Decompression**: The file is decompressed using pako.
 5. **File Download**: The reconstructed file is made available for download.
 
+## Offline / Single-File Version
+
+`offline/generator.html` and `offline/scanner.html` are fully self-contained: pako, qrcodejs and jsQR are inlined, so there are no CDN, Vue or WASM dependencies. They work from `file://` and can be kept as an offline copy (e.g. open in a browser, then use Android Chrome's "Download page"). Rebuild them with `python3 build_offline.py`; the pinned libraries live in `offline/vendor/`.
+
+Differences from the online version:
+
+- The offline scanner uses **jsQR** (pure JavaScript) instead of zbar-wasm, so no WASM file needs to be fetched.
+- The offline sender adds Prev/Next buttons and a speed selector. The original auto-advanced every 50 ms, which is too fast to scan reliably.
+- The wire format is unchanged, so online and offline pages interoperate.
+
+## Python CLI
+
+`airgap_qr.py` is a Python port with a byte-for-byte compatible wire format, so the Python and web tools interoperate in any combination.
+
+Dependencies:
+
+```sh
+pip install qrcode[pil] opencv-python    # sender
+pip install opencv-python zxing-cpp      # receiver
+```
+
+Usage:
+
+```sh
+python3 airgap_qr.py send FILE       # compress + show QR codes on screen
+python3 airgap_qr.py receive         # scan QR codes from the camera, rebuild file
+python3 airgap_qr.py selfcheck       # offline round-trip test (no camera needed)
+```
+
+Sender keys: `Space`/`Enter` next, `p`/`Backspace` previous, `q`/`Esc` quit. Add `--delay SEC` to auto-advance.
+
 ## Contributing
 
 Contributions are welcome! Please follow these steps:

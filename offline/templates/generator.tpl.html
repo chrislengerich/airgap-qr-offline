@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>QR File Sender (offline)</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { font-family: Arial, sans-serif; margin: 0; background: #f4f4f4; color: #333; }
+      .card { max-width: 640px; margin: 0 auto; padding: 20px; background: #fff;
+              min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+              box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); }
+      .title { font-size: 1.25rem; margin: 1rem 0; }
+      .message { font-size: 0.9rem; margin: 0 0 1rem; color: #555; text-align: center; }
+      input[type="file"] { width: 100%; padding: 8px; margin: 0 0 1rem;
+                           border: 1px solid #d1d5db; background: #f9fafb; cursor: pointer; }
+      .row { display: flex; gap: 8px; align-items: center; justify-content: center; margin: 0 0 1rem; }
+      label.row { font-size: 0.9rem; }
+      select { padding: 4px 6px; }
+      button { padding: 8px 16px; border: 2px solid #6b7280; background: #fff;
+               cursor: pointer; font-size: 1rem; }
+      button:hover:not(:disabled) { background: #e5e7eb; }
+      button:disabled { opacity: 0.5; cursor: default; }
+      #qrcode { display: flex; justify-content: center; width: 100%; }
+      #qrcode canvas, #qrcode img { max-width: 100%; height: auto; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="title">Data Sender Mode</div>
+      <div class="message" id="user_message">Choose file to get started</div>
+      <input id="file_input" type="file" />
+      <div class="row">
+        <button id="btn_start">Start Transfer</button>
+        <button id="btn_prev" disabled>Prev</button>
+        <button id="btn_next" disabled>Next</button>
+      </div>
+      <label class="row">
+        Speed:
+        <select id="speed">
+          <option value="2000">Slow (2s per code)</option>
+          <option value="1000" selected>Normal (1s per code)</option>
+          <option value="250">Fast (0.25s per code)</option>
+        </select>
+      </label>
+      <div id="qrcode"></div>
+    </div>
+    <script>
+__PAKO__
+    </script>
+    <script>
+__QRCODE__
+    </script>
+    <script>
+      (function () {
+        var user_message = document.getElementById("user_message");
+        var btn_start = document.getElementById("btn_start");
+        var btn_prev = document.getElementById("btn_prev");
+        var btn_next = document.getElementById("btn_next");
+        var file_input = document.getElementById("file_input");
+        var speed = document.getElementById("speed");
+        var chunk_size = 250;
+
+        var qrcode_object, is_transferring = false, frames = [], idx = 0, timer = null;
+
+        var encode_data = function (index, input_bytes) {
+          var encoded_string = String.fromCharCode.apply(null, input_bytes);
+          var utf8_bytes = new TextEncoder().encode(encoded_string);
+          return index + "," + btoa(String.fromCharCode.apply(null, utf8_bytes));
+        };
+
+        var show = function (i) {
+          idx = i;
+          qrcode_object.clear();
+          qrcode_object.makeCode(frames[i]);
+          if (i === 0) {
+            user_message.textContent = "Scan the metadata QR code";
+            btn_prev.disabled = true;
+          } else {
+            user_message.textContent = "Transferring chunk " + i + "/" + (frames.length - 1);
+            btn_prev.disabled = false;
+          }
+          btn_next.disabled = i >= frames.length - 1;
+        };
+
+        var schedule = function () {
+          clearTimeout(timer);
+          timer = setTimeout(function () {
+            if (is_transferring && idx < frames.length - 1) show(idx + 1);
+          }, parseInt(speed.value, 10));
+        };
+
+        var stop_transfer = function () {
+          is_transferring = false;
+          clearTimeout(timer);
+          btn_start.textContent = "Start Transfer";
+          btn_prev.disabled = true;
+          btn_next.disabled = true;
+          user_message.textContent = "Choose file to get started";
+        };
+
+        var start_transfer = function () {
+          if (is_transferring) { stop_transfer(); return; }
+          var file = file_input.files[0];
+          if (!file) { user_message.textContent = "Please choose a file first"; return; }
+          is_transferring = true;
+          btn_start.textContent = "Stop Transfer";
+          file.arrayBuffer().then(function (buf) {
+            var data_array = pako.gzip(new Uint8Array(buf), { level: 9 });
+            var total_chunks = Math.ceil(data_array.length / chunk_size);
+            frames = [JSON.stringify({ name: file.name, chunks: total_chunks })];
+            for (var i = 0; i < total_chunks; i++) {
+              frames.push(encode_data(i, data_array.subarray(i * chunk_size, (i + 1) * chunk_size)));
+            }
+            show(0);
+            schedule();
+          });
+        };
+
+        btn_start.addEventListener("click", start_transfer);
+        btn_prev.addEventListener("click", function () { show(idx - 1); schedule(); });
+        btn_next.addEventListener("click", function () { show(idx + 1); schedule(); });
+        speed.addEventListener("change", schedule);
+
+        var size = Math.max(256, Math.min(window.innerWidth, window.innerHeight) / 1.5);
+        qrcode_object = new QRCode("qrcode", {
+          text: "Choose file to get started",
+          width: size,
+          height: size,
+          typeNumber: 40,
+          colorDark: "#000000",
+          colorLight: "#ffffff",
+          correctLevel: QRCode.CorrectLevel.M
+        });
+      })();
+    </script>
+  </body>
+</html>

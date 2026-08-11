@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>QR File Receiver (offline)</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { font-family: Arial, sans-serif; margin: 0; background: #f4f4f4; color: #333; }
+      .card { max-width: 640px; margin: 0 auto; padding: 20px; background: #fff;
+              min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+              box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); }
+      .title { font-size: 1.25rem; margin: 1rem 0; }
+      .message { font-size: 0.9rem; margin: 0 0 1rem; color: #555; text-align: center; }
+      button { padding: 8px 16px; border: 2px solid #6b7280; background: #fff;
+               cursor: pointer; font-size: 1rem; margin: 0 0 1rem; }
+      button:hover { background: #e5e7eb; }
+      video { width: 100%; border: 1px solid #ddd; background: #000; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="title">Data Receiver Mode</div>
+      <div class="message" id="user_message">Click receive button to start receiving</div>
+      <div class="message" id="progress">Progress: 0 / 0</div>
+      <button id="btn">Start Receiver</button>
+      <video id="video" muted autoplay playsinline></video>
+      <canvas id="scan" hidden></canvas>
+    </div>
+    <script>
+__PAKO__
+    </script>
+    <script>
+__JSQR__
+    </script>
+    <script>
+      (function () {
+        var user_message = document.getElementById("user_message");
+        var progress = document.getElementById("progress");
+        var btn = document.getElementById("btn");
+        var video = document.getElementById("video");
+        var scan = document.getElementById("scan");
+
+        var is_receiving = false, stream = null, meta = {}, decoded = {}, timer = null;
+
+        var decode_data = function (input_string) {
+          var encoded_data = atob(input_string.split(",")[1]);
+          var encoded_array = Array.from(encoded_data, function (char) {
+            return char.charCodeAt(0);
+          });
+          var output_string = new TextDecoder().decode(new Uint8Array(encoded_array));
+          return {
+            index: parseInt(input_string.split(",")[0], 10),
+            data: Array.from(output_string, function (char) {
+              return char.charCodeAt(0);
+            })
+          };
+        };
+
+        var download_file = function (data, fileName) {
+          var blob = new Blob([data]);
+          var a = document.createElement("a");
+          var url = URL.createObjectURL(blob);
+          a.href = url;
+          a.download = fileName;
+          a.click();
+          setTimeout(function () { URL.revokeObjectURL(url); }, 5000);
+        };
+
+        var render = function () {
+          var got = Object.keys(decoded).length;
+          var total = meta.chunks || 0;
+          progress.textContent = "Progress: " + got + " / " + total;
+          user_message.textContent = meta.name
+            ? ("Transferring file: " + meta.name)
+            : "Click receive button to start receiving";
+          btn.textContent = is_receiving ? "Stop Receiver" : "Start Receiver";
+        };
+
+        var complete = function () {
+          var out = [];
+          for (var i = 0; i < meta.chunks; i++) {
+            out = out.concat(decoded[i]);
+          }
+          var unit8 = new Uint8Array(out);
+          var inflated = pako.inflate(unit8);
+          cancelAnimationFrame(timer);
+          is_receiving = false;
+          if (stream) {
+            stream.getTracks().forEach(function (t) { t.stop(); });
+            stream = null;
+          }
+          video.srcObject = null;
+          meta = {};
+          decoded = {};
+          render();
+          user_message.textContent = "Data Transfer Complete";
+        };
+
+        var scan_frame = function () {
+          if (!is_receiving) return;
+          try {
+            if (video.videoWidth > 0 && video.videoHeight > 0) {
+              var scale = Math.min(1, 640 / video.videoWidth);
+              scan.width = Math.round(video.videoWidth * scale);
+              scan.height = Math.round(video.videoHeight * scale);
+              var ctx = scan.getContext("2d", { willReadFrequently: true });
+              ctx.drawImage(video, 0, 0, scan.width, scan.height);
+              var image = ctx.getImageData(0, 0, scan.width, scan.height);
+              var code = jsQR(image.data, scan.width, scan.height);
+              if (code) {
+                var data = code.data;
+                if (data.indexOf("chunks") !== -1) {
+                  var m = JSON.parse(data);
+                  if (m.name !== meta.name || m.chunks !== meta.chunks) {
+                    meta = m;
+                    decoded = {};
+                  }
+                } else if (data.split(",").length === 2) {
+                  var raw = decode_data(data);
+                  decoded[raw.index] = raw.data;
+                }
+                render();
+              }
+              if (meta.chunks && Object.keys(decoded).length >= meta.chunks) {
+                complete();
+                return;
+              }
+            }
+          } catch (e) {
+            /* skip unreadable frame */
+          }
+          timer = requestAnimationFrame(scan_frame);
+        };
+
+        btn.addEventListener("click", function () {
+          if (is_receiving) {
+            is_receiving = false;
+            cancelAnimationFrame(timer);
+            if (stream) {
+              stream.getTracks().forEach(function (t) { t.stop(); });
+              stream = null;
+            }
+            video.srcObject = null;
+            meta = {};
+            decoded = {};
+            render();
+            return;
+          }
+          is_receiving = true;
+          decoded = {};
+          meta = {};
+          render();
+          navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+            .then(function (s) {
+              if (!is_receiving) { s.getTracks().forEach(function (t) { t.stop(); }); return; }
+              stream = s;
+              video.srcObject = s;
+              scan_frame();
+            })
+            .catch(function (e) {
+              is_receiving = false;
+              user_message.textContent = "Camera error: " + e.message;
+              render();
+            });
+        });
+
+        render();
+      })();
+    </script>
+  </body>
+</html>
