@@ -1,5 +1,5 @@
-const CACHE = "airgap-qr-offline-v1";
-const PRECACHE = ["./index.html", "./generator.html", "./scanner.html"];
+const CACHE = "airgap-qr-offline-v2";
+const PRECACHE = ["./index.html", "./generator.html", "./scanner.html", "./about.html"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(

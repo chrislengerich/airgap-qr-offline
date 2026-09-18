@@ -48,7 +48,7 @@ cd airgap-qr-transfer
 
 ## Offline / Single-File Version
 
-`offline/generator.html`, `offline/scanner.html` and `offline/index.html` are fully self-contained: pako, qrcodejs and jsQR are inlined, so there are no CDN, Vue or WASM dependencies. They work from `file://` and are served with a service worker (`offline/sw.js`) so that once a page is opened over http(s) the browser precaches it and it keeps working — fully interactive, camera included — when offline. Rebuild them with `python3 build_offline.py`; the pinned libraries live in `offline/vendor/`.
+`offline/generator.html`, `offline/scanner.html`, `offline/index.html` and `offline/about.html` (the "why" page, linking [xkcd 3295](https://xkcd.com/3295/)) are fully self-contained: pako, qrcodejs and jsQR are inlined, so there are no CDN, Vue or WASM dependencies. They work from `file://` and are served with a service worker (`offline/sw.js`) so that once a page is opened over http(s) the browser precaches it and it keeps working — fully interactive, camera included — when offline. Rebuild them with `python3 build_offline.py`; the pinned libraries live in `offline/vendor/`.
 
 Differences from the online version:
 
