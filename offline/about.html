@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>About QR File Transfer (offline)</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { font-family: Arial, sans-serif; margin: 0; background: #f4f4f4; color: #333; }
+      .card { max-width: 640px; margin: 0 auto; padding: 20px; background: #fff;
+              min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+              box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); }
+      .title { font-size: 1.25rem; margin: 1rem 0; }
+      .content { width: 100%; font-size: 0.9rem; color: #333; }
+      .content h3 { font-size: 1rem; margin: 1.25rem 0 0.25rem; }
+      .content p { margin: 0 0 0.75rem; }
+      .content a { color: #0645ad; }
+      a.back { display: block; width: 100%; max-width: 360px; margin: 1rem auto 0; padding: 12px;
+               text-align: center; text-decoration: none; color: #333;
+               border: 2px solid #6b7280; background: #fff; font-size: 1rem; }
+      a.back:hover { background: #e5e7eb; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="title">About QR File Transfer</div>
+      <div class="content">
+        <p>Send files between any two devices with a screen and a camera. No wires needed,
+          works fully offline. Some advantages:</p>
+        <h3>Easy file transfers between fully offline devices</h3>
+        <p>It's useful for transferring config files, secrets, pastes and short messages in
+          airgapped environments for day-to-day use, without requiring a network connection,
+          Wifi password or cable.</p>
+        <h3>Prevents local eavesdropping and exposing a radio attack surface</h3>
+        <p>QR transfers are hard to intercept - it's quite hard to eavesdrop on a sequence of
+          QR codes without line-of-sight to the screen, in comparison to other radio protocols
+          like QuickShare (and turning on Bluetooth also exposes your devices to unwanted
+          Bluetooth radio attacks).</p>
+        <h3>Defense-in-depth against rootkits</h3>
+        <p>If the messages you're transferring are themselves encrypted (say, from an offline,
+          airgapped phone with your security key to Facebook Messenger on an online phone), you
+          can send encrypted messages even if your online phone or app is rooted or backdoored
+          (all E2E encrypted apps fail here). In fact, you can use any communication channel,
+          not just encrypted apps, and your messages will remain encrypted to anyone who doesn't
+          have physical access to one of the security keys in the convo. Want to chat mostly in
+          Slack (unencrypted, but beautiful UI), but keep sensitive location information fully
+          encrypted? Easy to do with an airgapped phone connected via QR codes.</p>
+        <h3>Defense-in-depth for forensic analysis</h3>
+        <p>It's also useful for pulling files off compromised or untrusted computers, since the
+          bitstream can be recorded and replayed for auditing, and the transfer protocol does
+          not involve any USB pairing, which can compromise a driver. Payload bitstreams can be
+          fully captured for screening or IoC (indicator of compromise) development without
+          alerting the attacker.</p>
+        <p>There are a couple other solutions out there, but none that work offline and can be
+          self-hosted.</p>
+        <p>Related: <a href="https://xkcd.com/3295/">xkcd 3295 (Semaphore)</a>.</p>
+      </div>
+      <a class="back" href="index.html">Back to the main page</a>
+    </div>
+    <script>
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("./sw.js").catch(function () {});
+      }
+    </script>
+  </body>
+</html>

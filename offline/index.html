@@ -12,22 +12,22 @@
               box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); }
       .title { font-size: 1.25rem; margin: 1rem 0; }
       .message { font-size: 0.9rem; margin: 0 0 1rem; color: #555; text-align: center; }
-      a { display: block; width: 100%; max-width: 360px; margin: 0.5rem auto; padding: 12px;
-          text-align: center; text-decoration: none; color: #333;
-          border: 2px solid #6b7280; background: #fff; font-size: 1rem; }
-      a:hover { background: #e5e7eb; }
-      .hint { font-size: 0.8rem; color: #777; margin-top: 1.5rem; text-align: center; }
+      a.button { display: block; width: 100%; max-width: 360px; margin: 0.5rem auto; padding: 12px;
+                 text-align: center; text-decoration: none; color: #333;
+                 border: 2px solid #6b7280; background: #fff; font-size: 1rem; }
+      a.button:hover { background: #e5e7eb; }
+      a.about { font-size: 0.8rem; color: #555; margin-top: 1.5rem; text-align: center; }
     </style>
   </head>
   <body>
     <div class="card">
       <div class="title">QR File Transfer (offline)</div>
       <div class="message">These pages are fully self-contained. Open this page once with
-        network access so it is cached, then they work offline.</div>
-      <a href="generator.html">Sender (show QR codes)</a>
-      <a href="scanner.html">Receiver (scan with camera)</a>
-      <a href="about.html">About this tool</a>
-      <div class="hint">Opened from a secure context over HTTPS, the receiver can use the camera.</div>
+        network access so it is cached, then they work offline. Opened from a secure context
+        over HTTPS, the receiver can use the camera.</div>
+      <a class="button" href="generator.html">Sender (show QR codes)</a>
+      <a class="button" href="scanner.html">Receiver (scan with camera)</a>
+      <a class="about" href="about.html">About</a>
     </div>
     <script>
       if ("serviceWorker" in navigator) {
