@@ -13,6 +13,12 @@ const MIME = {
 
 http
   .createServer((req, res) => {
+    const fwdProto = (req.headers["x-forwarded-proto"] || "").split(",")[0].trim();
+    if (fwdProto && fwdProto !== "https" && req.headers.host) {
+      res.writeHead(301, { Location: "https://" + req.headers.host + req.url });
+      res.end();
+      return;
+    }
     let urlPath;
     try {
       urlPath = decodeURIComponent(req.url.split("?")[0].split("#")[0]);
