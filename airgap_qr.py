@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Airgapped file transfer using QR codes (Python port of the JS web app).
 
-The wire format is byte-for-byte compatible with generator.html / scanner.html:
+The wire format is byte-for-byte compatible with the offline web pages
+(offline/generator.html / offline/scanner.html):
 
   * The whole file is gzip-compressed (level 9), then split into chunks of
     250 compressed bytes.
@@ -41,7 +42,7 @@ CHUNK_SIZE = 250  # compressed bytes per QR; must match JS `chunk_size`
 
 # Upper bounds enforced by receivers so a malicious sender cannot cause
 # unbounded memory allocation, loops, or absurd file names.
-MAX_CHUNKS = 200000  # must match MAX_CHUNKS in scanner.html / offline scanner
+MAX_CHUNKS = 200000  # must match MAX_CHUNKS in the offline scanner
 MAX_SIZE = 64 * 1024 * 1024  # decompressed bytes; must match MAX_SIZE in JS
 DEFAULT_NAME = "received_file.bin"
 
