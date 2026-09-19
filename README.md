@@ -2,9 +2,9 @@
 
 Airgapped QR File Transfer is a simple web-based tool to transfer data between devices using QR codes. It allows for the transfer of files without the need for network connectivity, leveraging QR codes to encode and decode file data. The web pages are fully self-contained: pako for compression, qrcode.js for QR code generation, and jsQR for scanning — no CDN, framework or WASM dependencies.
 
-This is a fully offline and heavily rewritten fork of the nice work of https://github.com/mohankumarelec/airgap-qr-transfer.git, which add functionality to handle pastes.
+This is a fully offline and heavily rewritten fork of the nice work of https://github.com/mohankumarelec/airgap-qr-transfer.git.
 
-## Online Demo:
+## Online @:
 https://qrft.org
 
 ## Offline / Single-File Version
