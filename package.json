@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Hosts the fully-offline QR transfer pages so they can be opened over https (e.g. Android Download-page copies)",
   "main": "server.js",
+  "license": "GPL-3.0-or-later",
   "scripts": {
     "start": "node server.js"
   },
