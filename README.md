@@ -18,13 +18,13 @@ Visit the above link once, and bookmark it in your browser (on Android, via hamb
 
 Differences from the online version:
 
-- The offline scanner uses **jsQR** (pure JavaScript) instead of zbar-wasm, so no WASM file needs to be fetched.
-- The offline sender adds Prev/Next buttons and a speed selector. Both senders auto-advance continuously, looping through metadata → every chunk → back to metadata until stopped, and both accept a pasted text message in place of a file.
+- The scanner uses **jsQR** (pure JavaScript) instead of zbar-wasm, so no WASM file needs to be fetched.
+- The sender adds Prev/Next buttons and a speed selector. The sender auto-advances continuously, looping through metadata → every chunk → back to metadata until stopped, and accepts a pasted text message in place of a file.
 - The wire format is unchanged, so online and offline pages interoperate.
 
 ### Data Sender (offline/generator.html)
 
-1. **Source Selection**: The user either picks a file from their device or pastes text into the text box (text takes priority over any selected file). Text is sent as a file named `Paste @ <timestamp>` (local time, e.g. `Paste @ 2026-08-11_14-30-05`), and the sender's status line shows that name once transfer starts.
+1. **Source Selection**: The user either picks a file from their device or pastes text into the text box (text takes priority over any selected file). Pastes are sent as a file named `Paste @ <timestamp>` (local time, e.g. `Paste @ 2026-08-11_14-30-05`).
 2. **Validation**: Text is checked for an empty value, a size limit (`1000000` characters), and malformed Unicode (unpaired surrogates) before sending; file names are sanitized to a bare, safe name.
 3. **Compression**: The payload is compressed using the pako library.
 4. **Chunking**: The compressed payload is split into smaller chunks.
