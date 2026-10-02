@@ -27,6 +27,7 @@ these assumptions:
   network requests byond the first request. The served site must stay
   zero-dependency and need no build step; the only Node code is the static
   file server (`server.js`).
+- **Verified commits.** Verified commits only.
 
 ## Tests
 
