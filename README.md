@@ -39,50 +39,47 @@ Differences from the online version:
 4. **Decompression**: The file is decompressed using pako.
 5. **File Download**: The reconstructed file is made available for download.
 
-## Getting Started With Development
+## Self-Hosting
 
-### Prerequisites
+The receiver needs a **secure context** for camera access, so serve the pages over https. The site is fully static (`offline/`), needs no build step, and has zero dependencies. The bundled zero-dependency Node server (`server.js`, Node 18+) serves it, listens on `$PORT` (default `3000`), and auto-redirects plain http to https when behind a reverse proxy that sets `X-Forwarded-Proto` (e.g. Heroku or Cloud Run). To test locally, `npm start` serves `offline/` at <http://localhost:3000/> — `localhost` is a secure context, so the scanner can use the camera.
 
-- A modern web browser (preferably Chrome or Firefox) that supports JavaScript and the WebRTC API.
-- Node.js 18+ only if you want to run the bundled static server (any other static file server works too).
+### Heroku
 
-### Local server
-
-The receiver needs a **secure context** for camera access, so serve the pages over http(s) rather than opening them from `file://`. The bundled zero-dependency server (`server.js`, the same one used for deployment) serves the `offline/` folder:
+The repo ships with a `Procfile` (`web: npm start`), so it deploys as-is:
 
 ```sh
-npm start                  # serves offline/ at http://localhost:3000
-PORT=8000 npm start        # different port
+heroku create my-airgap-qr
+git push heroku main
+heroku open
 ```
 
-Open <http://localhost:3000/> — `localhost` is a secure context, so the scanner can use the camera. The server only redirects plain http to https when it detects a reverse proxy (`X-Forwarded-Proto` header, e.g. on Heroku); locally it serves plain http as-is.
+Heroku terminates TLS and sets `X-Forwarded-Proto`, so the bundled server's http→https redirect works out of the box.
 
-Any other static file server works too, e.g.:
+### Google Cloud (Cloud Run)
+
+`gcloud run deploy` builds the repo with Google Cloud buildpacks, which honor the included `Procfile`, and provisions TLS for you:
 
 ```sh
-python3 -m http.server -d offline 8000
+gcloud run deploy airgap-qr --source . --region us-central1 --allow-unauthenticated
 ```
 
-## Python CLI
+### AWS (Amplify Hosting)
 
-`airgap_qr.py` is a Python port with a byte-for-byte compatible wire format, so the Python and web tools interoperate in any combination.
+Since the site is static, host the `offline/` files directly — no Node server needed. In the [Amplify Hosting console](https://console.aws.amazon.com/amplify/), connect the GitHub repo and use this build spec (no build, static artifacts):
 
-Dependencies:
-
-```sh
-pip install qrcode[pil] opencv-python    # sender
-pip install opencv-python zxing-cpp      # receiver
+```yaml
+version: 1
+frontend:
+  phases:
+    build:
+      commands: []
+  artifacts:
+    baseDirectory: offline
+    files:
+      - "**/*"
 ```
 
-Usage:
-
-```sh
-python3 airgap_qr.py send FILE       # compress + show QR codes on screen
-python3 airgap_qr.py receive         # scan QR codes from the camera, rebuild file
-python3 airgap_qr.py selfcheck       # offline round-trip test (no camera needed)
-```
-
-Sender keys: `Space`/`Enter` next, `p`/`Backspace` previous, `q`/`Esc` quit. Add `--delay SEC` to auto-advance.
+Amplify provisions the https domain. (An S3 bucket alone won't work — its website endpoint is plain http, and the camera needs a secure context; if you prefer S3, put CloudFront with https in front of it.)
 
 ## Contributing
 
@@ -105,4 +102,3 @@ It is a heavily modified fork of [Airgapped QR Code Transfer](https://github.com
 - [pako](https://github.com/nodeca/pako) - Compression library.
 - [qrcode.js](https://github.com/davidshimjs/qrcodejs) - QR code generation library.
 - [jsQR](https://github.com/cozmo/jsQR) - QR code scanning library.
-- [zxing-cpp](https://github.com/nu-book/zxing-cpp) - QR code scanning for the Python CLI.

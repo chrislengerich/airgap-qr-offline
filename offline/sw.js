@@ -1,4 +1,4 @@
-const CACHE = "airgap-qr-offline-v2";
+const CACHE = "airgap-qr-offline-v3";
 const PRECACHE = ["./index.html", "./generator.html", "./scanner.html", "./about.html"];
 
 self.addEventListener("install", (e) => {
