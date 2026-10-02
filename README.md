@@ -1,6 +1,6 @@
 # Airgapped QR File Transfer (Offline Version)
 
-Airgapped QR File Transfer is a simple web-based tool to transfer data between devices using QR codes. It allows for the transfer of files without the need for network connectivity, leveraging QR codes to encode and decode file data. The web pages are fully self-contained: pako for compression, qrcode.js for QR code generation, and jsQR for scanning — no CDN, framework or WASM dependencies.
+Airgapped QR File Transfer is a simple static JS site to transfer data between devices using QR codes. It allows for the transfer of files without the need for network connectivity, leveraging QR codes to encode and decode file data. The web pages are fully self-contained: pako for compression, qrcode.js for QR code generation, and jsQR for scanning — no CDN, framework or WASM dependencies.
 
 This is a fully offline and heavily rewritten fork of the nice work of https://github.com/mohankumarelec/airgap-qr-transfer.git.
 
@@ -12,15 +12,20 @@ Visit the above link once, and bookmark it in your browser (on Android, via hamb
 
 ## Features
 
-### Offline
+### Fully offline
 
-`offline/*` is fully self-contained: pako, qrcodejs and jsQR are inlined, so there are no CDN, Vue or WASM dependencies. They work from `file://` and are served with a service worker (`offline/sw.js`) so that once a page is opened over http(s) the browser precaches it and it keeps working — fully interactive, camera included — when offline. Rebuild them with `python3 build_offline.py`; the pinned libraries live in `offline/vendor/`.
+- pako, qrcodejs and jsQR are inlined, and there are no CDN, Vue or WASM dependencies that require fetches on each use. They work from `file://` and are served with a service worker (`offline/sw.js`) so that once a page is opened once over http(s) the browser precaches it and it keeps working — fully interactive, camera included — when offline. Rebuild them with `python3 build_offline.py`; the pinned libraries live in `offline/vendor/`.
+- Wire format is preserved, so QR codes are compatible with scanners from the online repo.
 
-Differences from the online version:
+### Transfers both files and pastes
 
-- The scanner uses **jsQR** (pure JavaScript) instead of zbar-wasm, so no WASM file needs to be fetched.
-- The sender adds Prev/Next buttons and a speed selector. The sender auto-advances continuously, looping through metadata → every chunk → back to metadata until stopped, and accepts a pasted text message in place of a file.
-- The wire format is unchanged, so online and offline pages interoperate.
+- The sender adds Prev/Next buttons, a speed selector and support for pastes in addition to files. 
+
+### Hardening and self-hosting instructions
+
+- Adds basic hardening and unit tests against malicious payloads and self-hosting instructions for popular cloud providers.
+
+## Technical overview
 
 ### Data Sender (offline/generator.html)
 
@@ -29,7 +34,7 @@ Differences from the online version:
 3. **Compression**: The payload is compressed using the pako library.
 4. **Chunking**: The compressed payload is split into smaller chunks.
 5. **QR Code Generation**: Each chunk is encoded into a QR code using qrcode.js.
-6. **Display QR Codes**: The QR codes are displayed sequentially for the receiver to scan.
+6. **Display QR Codes**: The QR codes are displayed sequentially for the receiver to scan. The sender auto-advances continuously, looping through metadata → every chunk → back to metadata until stopped.
 
 ### Data Receiver (offline/scanner.html)
 
@@ -83,7 +88,7 @@ Amplify provisions the https domain. (An S3 bucket alone won't work — its webs
 
 ## Contributing
 
-Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for the repo's assumptions (minimal code, minimal features, broad platform compatibility) and how to submit changes.
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the repo's assumptions (minimal code, minimal features, broad platform compatibility) and how to submit changes.
 
 ## License
 
