@@ -99,6 +99,8 @@ Contributions are welcome! Please follow these steps:
 
 This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](LICENSE) file for details.
 
+It is a heavily modified fork of [Airgapped QR Code Transfer](https://github.com/mohankumarelec/airgapped-qr-code-transfer) by Mohankumar Ramachandran, which was originally released under the MIT License. Due to extensive rewriting, original MIT-licensed code is interleaved throughout the codebase; the original MIT copyright notice and license text are preserved verbatim in the [LICENSE](LICENSE) file, as that license requires.
+
 ## Acknowledgments
 - [pako](https://github.com/nodeca/pako) - Compression library.
 - [qrcode.js](https://github.com/davidshimjs/qrcodejs) - QR code generation library.
