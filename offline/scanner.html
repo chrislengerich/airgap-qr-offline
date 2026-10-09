@@ -10154,14 +10154,45 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
           var output_string = new TextDecoder().decode(new Uint8Array(encoded_array));
           return {
             index: parseInt(input_string.split(",")[0], 10),
-            data: Array.from(output_string, function (char) {
+            data: Uint8Array.from(output_string, function (char) {
               return char.charCodeAt(0);
             })
           };
         };
 
-        var MAX_CHUNKS = 200000;
-        var MAX_SIZE = 64 * 1024 * 1024;
+        var MAX_CHUNKS = 1000000;
+        var MAX_SIZE = 3 * 1024 * 1024 * 1024;
+        var MAX_INFLATED = 3 * 1024 * 1024 * 1024; // 3 GiB cap when no size is declared
+        var INFLATE_SLACK = 1024 * 1024;           // slack over a declared size before capping
+
+        // Inflate with a hard cap on decompressed output so a decompression bomb
+        // cannot exhaust memory before the declared-size check runs. The payload is
+        // pushed in slices (pako's documented streaming usage) and the collected
+        // output is checked after every emitted block, so inflate aborts as soon as
+        // the cap is crossed instead of materializing the whole stream first.
+        var safe_inflate = function (data, max_out) {
+          var inflator = new pako.Inflate();
+          var parts = [], total = 0;
+          inflator.onData = function (chunk) {
+            parts.push(chunk);
+            total += chunk.length;
+            if (total > max_out) {
+              throw new Error("decompressed data exceeds " + max_out + " bytes");
+            }
+          };
+          var STEP = 1 << 16;
+          for (var i = 0; i < data.length; i += STEP) {
+            inflator.push(data.subarray(i, Math.min(i + STEP, data.length)));
+            if (inflator.err) {
+              throw new Error(inflator.msg || "inflate failed");
+            }
+            if (inflator.ended) break;
+          }
+          if (!inflator.ended) {
+            throw new Error("truncated deflate stream");
+          }
+          return { parts: parts, length: total };
+        };
 
         var safe_filename = function (name) {
           var n = String(name || "").split(/[\\/]/).pop();
@@ -10181,8 +10212,10 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
           return true;
         };
 
-        var download_file = function (data, fileName) {
-          var blob = new Blob([data]);
+        // `parts` is an array of Uint8Array chunks; Blob accepts them directly,
+        // which avoids materializing one huge buffer for multi-GiB transfers.
+        var download_file = function (parts, fileName) {
+          var blob = new Blob(parts);
           var a = document.createElement("a");
           var url = URL.createObjectURL(blob);
           a.href = url;
@@ -10204,16 +10237,23 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         var complete = function () {
           var failed = null;
           try {
-            var out = [];
+            var compressed = 0;
             for (var i = 0; i < meta.chunks; i++) {
-              out = out.concat(decoded[i]);
+              compressed += decoded[i].length;
             }
-            var unit8 = new Uint8Array(out);
-            var inflated = pako.inflate(unit8);
-            if (meta.size !== undefined && inflated.length !== meta.size) {
+            var unit8 = new Uint8Array(compressed), off = 0;
+            for (var i = 0; i < meta.chunks; i++) {
+              unit8.set(decoded[i], off);
+              off += decoded[i].length;
+            }
+            var cap = (meta.size !== undefined && meta.size !== null)
+              ? meta.size + INFLATE_SLACK
+              : MAX_INFLATED;
+            var inflated = safe_inflate(unit8, cap);
+            if (meta.size !== undefined && meta.size !== null && inflated.length !== meta.size) {
               throw new Error("size mismatch: expected " + meta.size + " bytes, got " + inflated.length);
             }
-            download_file(inflated, safe_filename(meta.name));
+            download_file(inflated.parts, safe_filename(meta.name));
           } catch (e) {
             failed = e;
           }

@@ -39,6 +39,8 @@ Differences from the online version:
 4. **Decompression**: The file is decompressed using pako.
 5. **File Download**: The reconstructed file is made available for download.
 
+Transfers are bounded on both sides: the sender refuses a file over 3 GiB or one that compresses past 1 000 000 chunks (250 MB) before rendering any QR code, and the receiver caps decompressed output at the declared size + 1 MiB (or 3 GiB when the metadata omits the size) so a decompression bomb aborts mid-stream instead of exhausting memory.
+
 ## Self-Hosting
 
 The receiver needs a **secure context** for camera access, so serve the pages over https. The site is fully static (`offline/`), needs no build step, and has zero dependencies. The bundled zero-dependency Node server (`server.js`, Node 18+) serves it, listens on `$PORT` (default `3000`), and auto-redirects plain http to https when behind a reverse proxy that sets `X-Forwarded-Proto` (e.g. Heroku or Cloud Run). To test locally, `npm start` serves `offline/` at <http://localhost:3000/> — `localhost` is a secure context, so the scanner can use the camera.

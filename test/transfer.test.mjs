@@ -13,8 +13,8 @@ import { randomBytes } from "node:crypto";
 
 import { loadGenerator, loadScanner, encodeChunk, senderFrames } from "./helpers.mjs";
 
-const MAX_CHUNKS = 200000; // mirrors scanner MAX_CHUNKS
-const MAX_SIZE = 64 * 1024 * 1024; // mirrors scanner MAX_SIZE
+const MAX_CHUNKS = 1000000; // mirrors scanner MAX_CHUNKS
+const MAX_SIZE = 3 * 1024 * 1024 * 1024; // mirrors scanner MAX_SIZE
 
 // Drive a generator page to completion and return the rendered QR frames.
 async function framesForText(page, text) {
@@ -29,7 +29,7 @@ async function framesForText(page, text) {
 async function framesForFile(page, name, bytes) {
   page.el("speed").value = "250";
   page.el("file_input").files = [
-    { name, arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) },
+    { name, size: bytes.length, arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) },
   ];
   page.click("btn_start");
   await new Promise((r) => setImmediate(r)); // let arrayBuffer() resolve
@@ -72,7 +72,7 @@ describe("generator", () => {
     page.el("speed").value = "250";
     page.el("text_input").value = "pasted text";
     page.el("file_input").files = [
-      { name: "ignored.bin", arrayBuffer: async () => new ArrayBuffer(4) },
+      { name: "ignored.bin", size: 4, arrayBuffer: async () => new ArrayBuffer(4) },
     ];
     page.click("btn_start");
     assert.match(JSON.parse(page.frames[0]).name, /^Paste @ /);
@@ -288,5 +288,73 @@ describe("scanner robustness against malicious QR codes", () => {
     page.pumpFrames(frames.length);
     assert.equal(page.downloads.length, 1);
     assert.equal(new TextDecoder().decode(page.downloads[0].data), "aaa");
+  });
+});
+
+describe("scanner resource limits (decompression bombs)", () => {
+  const startScanner = async () => {
+    const page = loadScanner();
+    await page.startReceiver();
+    return page;
+  };
+
+  it("caps inflate at declared size + slack, aborting a bomb mid-stream", async () => {
+    const page = await startScanner();
+    // ~10 MiB of zeros compresses to a few KiB, so a single chunk frame
+    // carries a bomb that would inflate far past the declared 5-byte size
+    // plus the 1 MiB slack. Inflate must abort at the cap, not materialize
+    // the whole stream before the size-mismatch check runs.
+    const bomb = gzipSync(new Uint8Array(10 * 1024 * 1024));
+    page.feed('{"name":"bomb.bin","chunks":1,"size":5}', encodeChunk(0, bomb));
+    page.pumpFrames(2);
+    assert.equal(page.downloads.length, 0);
+    assert.match(page.message, /^Transfer failed: decompressed data exceeds/);
+  });
+
+  it("caps inflate at 8 GiB when metadata omits size (under the cap it works)", async () => {
+    const page = await startScanner();
+    const frames = senderFrames("zeros.bin", new Uint8Array(1024 * 1024), { gzipSync });
+    const meta = JSON.parse(frames[0]);
+    delete meta.size;
+    page.feed(JSON.stringify(meta), ...frames.slice(1));
+    page.pumpFrames(frames.length);
+    assert.equal(page.downloads.length, 1);
+    assert.equal(page.downloads[0].data.length, 1024 * 1024);
+  });
+
+  it("still completes honest transfers that omit size from the metadata", async () => {
+    const page = await startScanner();
+    const frames = senderFrames("a.txt", new TextEncoder().encode("aaa"), { gzipSync });
+    const meta = JSON.parse(frames[0]);
+    delete meta.size;
+    page.feed(JSON.stringify(meta), ...frames.slice(1));
+    page.pumpFrames(frames.length);
+    assert.equal(page.downloads.length, 1);
+    assert.equal(new TextDecoder().decode(page.downloads[0].data), "aaa");
+  });
+
+  it("round-trips a transfer spanning multiple inflate input slices", async () => {
+    const bytes = randomBytes(200 * 1024); // spans several 64 KiB pushes into pako
+    const gen = loadGenerator();
+    const frames = await framesForFile(gen, "multi.bin", bytes);
+    const dl = await receive(loadScanner(), frames);
+    assert.equal(dl.length, 1);
+    assert.ok(Buffer.from(dl[0].data).equals(Buffer.from(bytes)));
+  });
+});
+
+describe("sender transfer size limits", () => {
+  it("rejects a selected file over the receiver's declared-size cap before reading it", () => {
+    const page = loadGenerator();
+    page.el("file_input").files = [
+      {
+        name: "big.bin",
+        size: 3 * 1024 * 1024 * 1024 + 1,
+        arrayBuffer: async () => { throw new Error("file must not be read"); },
+      },
+    ];
+    page.click("btn_start");
+    assert.equal(page.frames.length, 0);
+    assert.match(page.message, /^Transfer too large: 3221225473 bytes/);
   });
 });

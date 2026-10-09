@@ -61,10 +61,22 @@ function makeEl(id, downloads) {
       };
     },
   };
-  // <a> elements created by download_file(): clicking records the download
+  // <a> elements created by download_file(): clicking records the download.
+  // download_file() passes an array of Uint8Array chunks, so join them here
+  // the way the browser would inside the Blob.
   el.click = () => {
     if (id === "a" || el.tagName === "a") {
-      downloads.push({ name: el.download, data: FakeBlob.last?.parts?.[0] });
+      const parts = FakeBlob.last?.parts;
+      let data = null;
+      if (parts) {
+        data = new Uint8Array(parts.reduce((n, c) => n + c.length, 0));
+        let off = 0;
+        for (const chunk of parts) {
+          data.set(chunk, off);
+          off += chunk.length;
+        }
+      }
+      downloads.push({ name: el.download, data });
     }
   };
   return el;

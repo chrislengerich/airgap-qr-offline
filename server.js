@@ -11,7 +11,7 @@ const MIME = {
   ".json": "application/json; charset=utf-8",
 };
 
-http
+const server = http
   .createServer((req, res) => {
     const fwdProto = (req.headers["x-forwarded-proto"] || "").split(",")[0].trim();
     if (fwdProto && fwdProto !== "https" && req.headers.host) {
@@ -29,7 +29,7 @@ http
     }
     if (urlPath === "/") urlPath = "/index.html";
     const filePath = path.join(ROOT, urlPath);
-    if (!filePath.startsWith(ROOT)) {
+    if (!filePath.startsWith(ROOT + path.sep)) {
       res.writeHead(403, { "Content-Type": "text/plain" });
       res.end("Forbidden");
       return;
@@ -51,3 +51,6 @@ http
     });
   })
   .listen(process.env.PORT || 3000);
+
+// Exported so tests (and wrappers) can close the listener.
+module.exports = server;

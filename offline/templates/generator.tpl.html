@@ -69,6 +69,11 @@ __QRCODE__
         var speed = document.getElementById("speed");
         var chunk_size = 250;
         var MAX_TEXT_LENGTH = 1000000;
+        // Mirror the receiver's limits (scanner's MAX_CHUNKS / MAX_SIZE) so an
+        // oversized transfer fails with a message instead of rendering QR codes
+        // the receiver will reject.
+        var MAX_SIZE = 3 * 1024 * 1024 * 1024;
+        var MAX_CHUNKS = 1000000;
 
         var qrcode_object, is_transferring = false, frames = [], idx = 0, timer = null;
         var current_name = "";
@@ -166,8 +171,18 @@ __QRCODE__
         };
 
         var begin_transfer = function (bytes, name) {
+          if (bytes.length > MAX_SIZE) {
+            user_message.textContent = "Transfer too large: " + bytes.length +
+              " bytes (max " + MAX_SIZE + ")";
+            return;
+          }
           var data_array = pako.gzip(bytes, { level: 9 });
           var total_chunks = Math.ceil(data_array.length / chunk_size);
+          if (total_chunks > MAX_CHUNKS) {
+            user_message.textContent = "Transfer too large: " + data_array.length +
+              " bytes compressed (max " + MAX_CHUNKS + " chunks)";
+            return;
+          }
           frames = [JSON.stringify({ name: safe_name(name), chunks: total_chunks, size: bytes.length })];
           for (var i = 0; i < total_chunks; i++) {
             frames.push(encode_data(i, data_array.subarray(i * chunk_size, (i + 1) * chunk_size)));
@@ -195,6 +210,11 @@ __QRCODE__
           var file = file_input.files[0];
           if (!file) {
             user_message.textContent = "Choose a file or paste text to get started";
+            return;
+          }
+          if (file.size > MAX_SIZE) {
+            user_message.textContent = "Transfer too large: " + file.size +
+              " bytes (max " + MAX_SIZE + ")";
             return;
           }
           file.arrayBuffer().then(function (buf) {
