@@ -1,5 +1,6 @@
 # Airgapped QR File Transfer (Offline Version)
 
+
 Airgapped QR File Transfer is a simple static JS site to transfer data between devices using QR codes. It allows for the transfer of files without the need for network connectivity, leveraging QR codes to encode and decode file data. The web pages are fully self-contained: pako for compression, qrcode.js for QR code generation, and jsQR for scanning — no CDN, framework or WASM dependencies.
 
 This is a fully offline and heavily rewritten fork of the nice work of https://github.com/mohankumarelec/airgap-qr-transfer.git.
@@ -91,6 +92,10 @@ Amplify provisions the https domain. (An S3 bucket alone won't work — its webs
 ## Contributing
 
 Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the repo's assumptions (minimal code, minimal features, broad platform compatibility) and how to submit changes.
+
+## Tests
+
+![Status for #main](https://github.com/chrislengerich/airgap-qr-offline/actions/workflows/test.yml/badge.svg?branch=main)
 
 ## License
 

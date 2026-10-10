@@ -1,0 +1,25 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Rebuild offline pages from templates + vendored libs
+        run: python3 offline/build_offline.py
+      - name: Fail if committed pages are stale
+        run: git diff --exit-code offline/
+      - name: Test suite
+        run: npm test
