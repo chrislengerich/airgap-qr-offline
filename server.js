@@ -14,6 +14,10 @@ const MIME = {
 const server = http
   .createServer((req, res) => {
     const fwdProto = (req.headers["x-forwarded-proto"] || "").split(",")[0].trim();
+    // HSTS is meaningful only on https responses (RFC 6797: never send it over http).
+    if (fwdProto === "https") {
+      res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+    }
     if (fwdProto && fwdProto !== "https" && req.headers.host) {
       res.writeHead(301, { Location: "https://" + req.headers.host + req.url });
       res.end();

@@ -30,6 +30,19 @@ const get = (rawPath, headers = {}) =>
     req.end();
   });
 
+const getHeaders = (rawPath, headers = {}) =>
+  new Promise((resolve, reject) => {
+    const req = http.request(
+      { host: "127.0.0.1", port: process.env.PORT, path: rawPath, headers },
+      (res) => {
+        res.resume();
+        res.on("end", () => resolve(res.headers));
+      }
+    );
+    req.on("error", reject);
+    req.end();
+  });
+
 describe("server.js static file handling", () => {
   let sibling;
 
@@ -74,5 +87,15 @@ describe("server.js static file handling", () => {
 
   it("redirects plain http when behind a reverse proxy", async () => {
     assert.equal(await get("/", { "X-Forwarded-Proto": "http" }), 301);
+  });
+
+  it("sends HSTS on https requests", async () => {
+    const headers = await getHeaders("/index.html", { "X-Forwarded-Proto": "https" });
+    assert.equal(headers["strict-transport-security"], "max-age=31536000; includeSubDomains");
+  });
+
+  it("does not send HSTS over plain http (RFC 6797)", async () => {
+    const headers = await getHeaders("/index.html");
+    assert.equal(headers["strict-transport-security"], undefined);
   });
 });
