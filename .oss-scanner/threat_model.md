@@ -1,6 +1,6 @@
 # Threat model — airgap-qr-offline
 
-## What this project does and where untrusted input enters
+## Project Description
 
 A browser-based tool for moving files and text across an air gap: a sender page
 (`offline/generator.html`) compresses data with pako, splits it into chunks, and
@@ -11,17 +11,17 @@ qrcodejs and jsQR are vendored and inlined), served by a small zero-dependency
 Node static file server (`server.js`). Hosted publicly at https://qrft.org and
 self-hostable (Heroku/Cloud Run/Amplify instructions in README.md).
 
-Attack surfaces:
+## Attack surfaces
+
 1. **HTTP requests to `server.js`.** The site is deployed on the public
    internet (at qrft.org), so treat every request as adversarial. Inputs: the decoded URL
    path, `Host`, and `X-Forwarded-Proto`. Site is static, any compromises on 
    the webserver that compromise the hosted site, network or github repo are high-sev.
 2. **Sender-side inputs** (picked file, pasted text) are local user inputs and
    a primary attack surface.
-3. Static dependencies - dependencies are trusted, but only those that are 
-   served from the repo's static files, which change slowly.
+3. **Static dependencies** - dependencies and versions are inlined in the repo.
 
-## How to exercise it
+## Usage
 
 - Build: `python3 offline/build_offline.py` (offline; vendored libs are committed).
 - Tests: `npm test` (Node's built-in runner). `test/helpers.mjs` loads the real
