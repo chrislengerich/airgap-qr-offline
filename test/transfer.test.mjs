@@ -311,7 +311,7 @@ describe("scanner resource limits (decompression bombs)", () => {
     assert.match(page.message, /^Transfer failed: decompressed data exceeds/);
   });
 
-  it("caps inflate at 8 GiB when metadata omits size (under the cap it works)", async () => {
+  it("caps inflate at 3 GiB when metadata omits size (under the cap it works)", async () => {
     const page = await startScanner();
     const frames = senderFrames("zeros.bin", new Uint8Array(1024 * 1024), { gzipSync });
     const meta = JSON.parse(frames[0]);

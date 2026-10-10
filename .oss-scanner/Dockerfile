@@ -6,8 +6,17 @@
 FROM debian:bookworm
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      ca-certificates git nodejs npm python3 \
+      ca-certificates curl git python3 xz-utils \
     && rm -rf /var/lib/apt/lists/*
+
+# Node from the official binaries: bookworm's apt only ships Node 18, which is
+# EOL. Verify the tarball against nodejs.org's published SHASUMS256.txt.
+RUN curl -fsSLO https://nodejs.org/dist/v24.21.0/node-v24.21.0-linux-x64.tar.xz \
+ && curl -fsSLO https://nodejs.org/dist/v24.21.0/SHASUMS256.txt \
+ && sha256sum -c --ignore-missing SHASUMS256.txt \
+ && tar -xJf node-v24.21.0-linux-x64.tar.xz -C /usr/local --strip-components=1 \
+ && rm node-v24.21.0-linux-x64.tar.xz SHASUMS256.txt \
+ && node --version && npm --version
 
 # scanner contract: the checkout lives inside the image, at /src
 COPY . /src
