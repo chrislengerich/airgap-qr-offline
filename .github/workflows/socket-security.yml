@@ -1,0 +1,48 @@
+name: Socket Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: socket-scan-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  socket-security:
+    # Secrets are not exposed to pull_request runs from forks; skip those
+    # instead of failing the check.
+    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        # On PRs, fetch one extra commit so Socket can diff the changes.
+        with:
+          fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 0 }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Socket CLI
+        run: pip install socketsecurity --upgrade
+      - name: Socket Security scan
+        env:
+          SOCKET_SECURITY_API_KEY: ${{ secrets.SOCKET_SECURITY_API_KEY }}
+          GH_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number || 0 }}
+        run: |
+          if [ -z "$SOCKET_SECURITY_API_KEY" ]; then
+            echo "::warning::SOCKET_SECURITY_API_KEY secret is not set — create a free API key at https://socket.dev and add it as a repository secret to enable scans. Skipping scan."
+            exit 0
+          fi
+          socketcli \
+            --target-path "$GITHUB_WORKSPACE" \
+            --scm github \
+            --pr-number "$PR_NUMBER"
