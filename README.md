@@ -97,11 +97,11 @@ Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the repo's
 
 If this helps you, donations are welcome and help fund further development of offline-first tools:
 
-Solana: CEAH5XTEdvQsHRc4yYZZ7GVzQqFf9qqLMH5pxqPkryE
-Monero: 46XhK1K7jtgZBDPFEdYRSPXsCnmyW9PLSC8tRKTuN1XFEpXNsAVvqAybZvg5PSGHpTLZ7aMK9KiDF3MmMHkmUoavLYghNc6
-BTC: bc1qqepyue2mtkgpyfvrydqc6aj4r0x4up4y8ualt0
-ETH: 0x2678682A56FBA8D399A9590f760CF2247b69983A
-USDC (Eth): 0x2678682A56FBA8D399A9590f760CF2247b69983A
+* Solana: CEAH5XTEdvQsHRc4yYZZ7GVzQqFf9qqLMH5pxqPkryE
+* Monero: 46XhK1K7jtgZBDPFEdYRSPXsCnmyW9PLSC8tRKTuN1XFEpXNsAVvqAybZvg5PSGHpTLZ7aMK9KiDF3MmMHkmUoavLYghNc6
+* BTC: bc1qqepyue2mtkgpyfvrydqc6aj4r0x4up4y8ualt0
+* ETH: 0x2678682A56FBA8D399A9590f760CF2247b69983A
+* USDC (Eth): 0x2678682A56FBA8D399A9590f760CF2247b69983A
 
 ## Tests
 
