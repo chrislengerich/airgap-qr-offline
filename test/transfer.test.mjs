@@ -64,7 +64,7 @@ describe("generator", () => {
   it("names pastes 'Paste @ <timestamp>'", async () => {
     const page = loadGenerator();
     const frames = await framesForText(page, "hi");
-    assert.match(JSON.parse(frames[0]).name, /^Paste @ \d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}$/);
+    assert.match(JSON.parse(frames[0]).name, /^Paste @ \d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.txt$/);
   });
 
   it("prefers pasted text over a selected file", async () => {
@@ -126,7 +126,7 @@ describe("paste and file round-trips (generator -> scanner)", () => {
     const frames = await framesForText(page, text);
     const dl = await receive(loadScanner(), frames);
     assert.equal(dl.length, 1);
-    assert.match(dl[0].name, /^Paste @ \d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}$/);
+    assert.match(dl[0].name, /^Paste @ \d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.txt$/);
     assert.equal(new TextDecoder().decode(dl[0].data), text);
   });
 
