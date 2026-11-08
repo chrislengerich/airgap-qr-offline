@@ -9,7 +9,11 @@ This is a fully offline and heavily rewritten fork of the nice work of https://g
 https://qrft.org
 
 ## Installation
-Visit the above link once, and bookmark it in your browser (on Android, via hamburger icon -> "Install shortcut"). After the initial load, the page will be cached and available offline.
+Visit the above link once, after the initial load, the page will be cached and available offline.
+
+Adding to home screen:
+- **Android (Chrome):** tap the menu icon (&#8942;) and choose **Install and create shortcut**.
+- **iOS (Safari):** tap the **Share** button and choose **Add to Home Screen**.
 
 ## Features
 

@@ -28,10 +28,15 @@
       button:disabled { opacity: 0.5; cursor: default; }
       #qrcode { display: flex; justify-content: center; width: 100%; }
       #qrcode canvas, #qrcode img { max-width: 100%; height: auto; }
+      a.back { align-self: flex-start; font-size: 0.85rem; color: #555;
+               text-decoration: none; margin-bottom: 0.5rem; }
+      a.back:hover { text-decoration: underline; }
     </style>
   </head>
   <body>
     <div class="card">
+      <a class="back" href="index.html"
+         onclick="if (window.history && history.length > 1) { history.back(); return false; }">&larr; Back</a>
       <div class="title">Data Sender Mode</div>
       <div class="message" id="user_message">Choose a file or paste text to get started</div>
       <input id="file_input" type="file" />
