@@ -123,6 +123,7 @@ export function loadPage(file) {
   const ctx = vm.createContext({
     document: {
       getElementById,
+      addEventListener() {}, // e.g. generator's "visibilitychange" wake-lock hook
       createElement(tag) {
         const el = makeEl(tag, downloads);
         el.tagName = tag;
