@@ -53,9 +53,27 @@ Transfers are bounded on both sides: the sender refuses a file over 3 GiB or one
 
 ## Self-Hosting
 
-The receiver needs a **secure context** for camera access, so serve the pages over https. The site is fully static (`offline/`), needs no build step, and has zero dependencies. The bundled zero-dependency Node server (`server.js`, Node 24+) serves it, listens on `$PORT` (default `3000`), and auto-redirects plain http to https when behind a reverse proxy that sets `X-Forwarded-Proto` (e.g. Heroku or Cloud Run). To test locally, `npm start` serves `offline/` at <http://localhost:3000/> — `localhost` is a secure context, so the scanner can use the camera.
+The receiver needs a **secure context** for camera access, so serve the pages over https. The site is fully static (`offline/`), needs no build step, and has zero dependencies. The bundled zero-dependency Node server (`server.js`, Node 24+) serves it, listens on `$PORT` (default `3000`), and auto-redirects plain http to https when behind a reverse proxy that sets `X-Forwarded-Proto` (e.g. Heroku or Cloud Run).
 
-### Heroku
+### Run
+
+Run the bundled server locally (it serves `offline/` at <http://localhost:3000/> — `localhost` is a secure context, so the scanner can use the camera):
+
+```sh
+npm start
+```
+
+Since the pages are fully self-contained, you can also just open `offline/index.html` directly from disk (`file://`) — though the camera scanner works only on `localhost` or https origins.
+
+### Test
+
+```sh
+npm test
+```
+
+### Deploy
+
+#### Heroku
 
 The repo ships with a `Procfile` (`web: npm start`), so it deploys as-is:
 
@@ -67,7 +85,7 @@ heroku open
 
 Heroku terminates TLS and sets `X-Forwarded-Proto`, so the bundled server's http→https redirect works out of the box.
 
-### Google Cloud (Cloud Run)
+#### Google Cloud (Cloud Run)
 
 `gcloud run deploy` builds the repo with Google Cloud buildpacks, which honor the included `Procfile`, and provisions TLS for you:
 
@@ -75,7 +93,7 @@ Heroku terminates TLS and sets `X-Forwarded-Proto`, so the bundled server's http
 gcloud run deploy airgap-qr --source . --region us-central1 --allow-unauthenticated
 ```
 
-### AWS (Amplify Hosting)
+#### AWS (Amplify Hosting)
 
 Since the site is static, host the `offline/` files directly — no Node server needed. In the [Amplify Hosting console](https://console.aws.amazon.com/amplify/), connect the GitHub repo and use this build spec (no build, static artifacts):
 
