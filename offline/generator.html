@@ -83,6 +83,27 @@ var QRCode;!function(){function a(a){this.mode=c.MODE_8BIT_BYTE,this.data=a,this
         var MAX_CHUNKS = 1000000;
 
         var qrcode_object, is_transferring = false, frames = [], idx = 0, timer = null;
+
+        // Keep the screen awake while the loop renders — a mid-transfer dim
+        // would interrupt the receiver's scan. No-op where unsupported
+        // (e.g. Firefox); browsers release the lock when the tab hides, so
+        // re-request on visible.
+        var wake_lock = null;
+        var request_wake_lock = function () {
+          if (!("wakeLock" in navigator)) return;
+          navigator.wakeLock.request("screen").then(function (l) {
+            wake_lock = l;
+          }).catch(function () {});
+        };
+        var release_wake_lock = function () {
+          if (!wake_lock) return;
+          try { wake_lock.release(); } catch (e) {}
+          wake_lock = null;
+        };
+        document.addEventListener("visibilitychange", function () {
+          if (!document.hidden && is_transferring) request_wake_lock();
+          else if (document.hidden) wake_lock = null;
+        });
         var current_name = "";
 
         var paste_name = function () {
@@ -171,6 +192,7 @@ var QRCode;!function(){function a(a){this.mode=c.MODE_8BIT_BYTE,this.data=a,this
         var stop_transfer = function () {
           is_transferring = false;
           clearTimeout(timer);
+          release_wake_lock();
           btn_start.textContent = "Start Transfer";
           btn_prev.disabled = true;
           btn_next.disabled = true;
@@ -198,6 +220,7 @@ var QRCode;!function(){function a(a){this.mode=c.MODE_8BIT_BYTE,this.data=a,this
           user_message.textContent = "Sending \"" + current_name + "\"";
           is_transferring = true;
           btn_start.textContent = "Stop Transfer";
+          request_wake_lock();
           btn_prev.disabled = false;
           btn_next.disabled = false;
           show(0);
