@@ -26,7 +26,7 @@ Adding to home screen:
 
 - The sender adds Prev/Next buttons, a speed selector and support for pastes in addition to files. 
 
-### Hardening and self-hosting instructions
+### Hardening and self-hosting (supply chain hardening)
 
 - Adds basic hardening and unit tests against malicious payloads and self-hosting instructions for popular cloud providers.
 
