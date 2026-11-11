@@ -12,7 +12,7 @@ https://qrft.org
 Visit the above link once, after the initial load, the page will be cached and available offline.
 
 Adding to home screen:
-- **Android (Chrome):** tap the menu icon (&#8942;) and choose **Install and create shortcut**.
+- **Android (Chrome):** in a regular tab (not incognito), tap the menu icon (&#8942;) and choose **Install and create shortcut**.
 - **iOS (Safari):** tap the **Share** button and choose **Add to Home Screen**.
 
 ## Features
